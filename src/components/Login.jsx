@@ -1,0 +1,101 @@
+import React, { Component } from 'react';
+import {
+    Button, Form, FormGroup, Label, Input, InputGroup, InputGroupText, Alert
+} from 'reactstrap';
+import { Navigate, Link } from 'react-router-dom';
+import api from '../utils/Api';
+import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { saveAuthInfo } from '../utils/Auth';
+import { toast } from 'react-toastify';
+
+class Login extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            email: '',
+            password: '',
+            error: '',
+            redirect: false,
+            showPassword: false,
+        };
+    }
+
+    handleChange = (e) => this.setState({ [e.target.name]: e.target.value });
+
+    togglePasswordVisibility = () =>
+        this.setState((prevState) => ({ showPassword: !prevState.showPassword }));
+
+    handleSubmit = async (e) => {
+        e.preventDefault();
+        const { email, password } = this.state;
+        try {
+            const res = await api.post('/login', { email, password });
+            const { token, isAdmin } = res.data;
+            saveAuthInfo(token, isAdmin || false);
+            this.setState({ redirect: true });
+        } catch (err) {
+            toast.error('Login failed. Please check your credentials.');
+            this.setState({ error: err.response?.data?.message || 'Login failed' });
+        }
+    };
+
+    render() {
+        const { email, password, error, redirect, showPassword } = this.state;
+        if (redirect) return <Navigate to="/home" />;
+
+        return (
+            <div className="auth-wrapper">
+                <div className="auth-card">
+                    <h3 className="text-center mb-4">Login to Your Account</h3>
+                    {error && <Alert color="danger">{error}</Alert>}
+                    <Form onSubmit={this.handleSubmit}>
+                        <FormGroup>
+                            <Label for="username">Email</Label>
+                            <InputGroup>
+                                <InputGroupText>
+                                    <FaUser />
+                                </InputGroupText>
+                                <Input
+                                    type="text"
+                                    name="email"
+                                    value={email}
+                                    onChange={this.handleChange}
+                                    required
+                                    placeholder="Enter your email"
+                                />
+                            </InputGroup>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label for="password">Password</Label>
+                            <InputGroup>
+                                <InputGroupText>
+                                    <FaLock />
+                                </InputGroupText>
+                                <Input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password"
+                                    value={password}
+                                    onChange={this.handleChange}
+                                    required
+                                    placeholder="Enter your password"
+                                />
+                                <InputGroupText
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={this.togglePasswordVisibility}
+                                >
+                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                </InputGroupText>
+                            </InputGroup>
+                        </FormGroup>
+                        <Button color="primary" block>Login</Button>
+                        <p className="text-center mt-3">
+                            New user? <Link to="/register">Register here</Link>
+                        </p>
+                    </Form>
+                </div>
+            </div>
+        );
+    }
+}
+
+export default Login;
