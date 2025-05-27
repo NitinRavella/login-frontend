@@ -24,3 +24,10 @@
     width: auto;
     object-fit: contain;
 }
+
+.product-title {
+    min-height: 1em;
+    max-height: 1em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

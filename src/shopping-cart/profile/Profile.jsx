@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import api from '../utils/Api';
 import { Alert, Spinner, Button, Form, FormGroup, Label, Input } from 'reactstrap';
 import Avatar from 'react-avatar';
+import withNavigation from '../components/withNavigation';
 
 class Profile extends Component {
     state = {
@@ -84,15 +85,7 @@ class Profile extends Component {
     };
 
     render() {
-        const {
-            user,
-            loading,
-            error,
-            editing,
-            name,
-            updating,
-            success,
-        } = this.state;
+        const { user, loading, error, editing, name, updating, success, } = this.state;
 
         if (loading) return <div className="text-center mt-5"><Spinner color="primary" /></div>;
 
@@ -153,9 +146,17 @@ class Profile extends Component {
                         <Button color="secondary" onClick={this.handleEditToggle}>Cancel</Button>
                     </Form>
                 )}
+                {user?.isAdmin && (
+                    <div className="mt-4">
+                        <h5>Admin Actions</h5>
+                        <Button color="danger" onClick={() => this.props.navigate('/admin/users')}>
+                            Manage Users
+                        </Button>
+                    </div>
+                )}
             </div>
         );
     }
 }
 
-export default Profile;
+export default withNavigation(Profile);

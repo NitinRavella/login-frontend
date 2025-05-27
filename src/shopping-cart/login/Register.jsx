@@ -2,10 +2,10 @@ import React, { Component } from 'react';
 import {
     Button, Form, FormGroup, Label, Input, Alert, InputGroup, InputGroupText
 } from 'reactstrap';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Avatar from 'react-avatar';
-import api from '../utils/Api'; // Axios instance
+import api from '../utils/Api';
 
 class Register extends Component {
     constructor(props) {
@@ -77,10 +77,9 @@ class Register extends Component {
                     <h3 className="text-center mb-4">Create New Account</h3>
                     {error && <Alert color="danger">{error}</Alert>}
                     <Form onSubmit={this.handleSubmit}>
-
                         {/* Avatar Preview & Upload */}
                         <FormGroup className="text-center">
-                            <Label>Avatar</Label>
+                            <Label htmlFor='avatarPreview'>Avatar</Label>
                             <div className="mb-2">
                                 {avatarPreview ? (
                                     <img
@@ -104,7 +103,7 @@ class Register extends Component {
                             />
                         </FormGroup>
                         <FormGroup>
-                            <Label for="name">Full Name</Label>
+                            <Label htmlFor="name">Full Name</Label>
                             <InputGroup>
                                 <InputGroupText><FaUser /></InputGroupText>
                                 <Input
@@ -119,7 +118,7 @@ class Register extends Component {
                         </FormGroup>
 
                         <FormGroup>
-                            <Label for="email">Email</Label>
+                            <Label htmlFor="email">Email</Label>
                             <InputGroup>
                                 <InputGroupText><FaEnvelope /></InputGroupText>
                                 <Input
@@ -134,7 +133,7 @@ class Register extends Component {
                         </FormGroup>
 
                         <FormGroup>
-                            <Label for="password">Password</Label>
+                            <Label htmlFor="password">Password</Label>
                             <InputGroup>
                                 <InputGroupText><FaLock /></InputGroupText>
                                 <Input
@@ -149,7 +148,7 @@ class Register extends Component {
                         </FormGroup>
 
                         <FormGroup>
-                            <Label for="confirmPassword">Confirm Password</Label>
+                            <Label htmlFor="confirmPassword">Confirm Password</Label>
                             <InputGroup>
                                 <InputGroupText><FaLock /></InputGroupText>
                                 <Input
@@ -171,7 +170,7 @@ class Register extends Component {
                         </FormGroup>
                         <Button color="success" block>Create Account</Button>
                         <p className="text-center mt-3">
-                            Already have an account? <Link to="/login">Login here</Link>
+                            Already have an account? <span onClick={this.props.onFlip} style={{ cursor: 'pointer', color: 'blue' }}>Login here</span>
                         </p>
                     </Form>
                 </div>

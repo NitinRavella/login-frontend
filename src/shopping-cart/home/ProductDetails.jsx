@@ -1,7 +1,12 @@
+// ProductDetailsComponent.js
 import React from 'react';
-import { Container, Row, Col, Button, Spinner, Input, Label, Form, FormGroup, Toast, ToastBody, ToastHeader } from 'reactstrap';
+import {
+    Container, Row, Col, Button, Spinner, Input, Label,
+    Form, FormGroup, Toast, ToastBody, ToastHeader
+} from 'reactstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/Api';
+import '../../styles/ProductDetails.css';
 
 class ProductDetailsComponent extends React.Component {
     constructor(props) {
@@ -14,7 +19,7 @@ class ProductDetailsComponent extends React.Component {
             submitting: false,
             toastVisible: false,
             toastMessage: '',
-            toastColor: 'success', // success or danger
+            toastColor: 'success',
         };
     }
 
@@ -86,7 +91,7 @@ class ProductDetailsComponent extends React.Component {
         const { product, loading, rating, comment, submitting, toastVisible, toastMessage, toastColor } = this.state;
 
         if (loading) return (
-            <Container className="mt-5">
+            <Container className="mt-5 text-center">
                 <Spinner color="primary">Loading...</Spinner>
             </Container>
         );
@@ -97,45 +102,57 @@ class ProductDetailsComponent extends React.Component {
         );
 
         return (
-            <Container className="mt-5">
+            <Container className="mt-5 product-details-container">
                 <Row>
                     <Col md="6" className="text-center">
-                        <img
-                            src={product.image}
-                            alt={product.name}
-                            className="img-fluid"
-                            style={{ maxHeight: '400px', objectFit: 'contain' }}
-                        />
+                        <img src={product.image} alt={product.name} className="product-image" />
                     </Col>
                     <Col md="6">
                         <h2>{product.name}</h2>
                         <p className="text-muted">{product.category}</p>
-                        <h3 className="text-success">₹{product.price}</h3>
-                        <p style={{ fontSize: '1.1rem' }}>{product.description}</p>
+                        {!isNaN(parseFloat(product.price)) ? (
+                            product.offerPrice ? (
+                                <div className="price-container">
+                                    <p className="text-success fw-semibold me-2">₹{product.offerPrice}</p>
+                                    <p className="discount-price">
+                                        ({Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF)
+                                    </p>
+                                    <p className="original-price">₹{product.price}</p>
+                                </div>
+                            ) : (
+                                <p className="text-success fw-semibold">₹{product.price}</p>
+                            )
+                        ) : (
+                            <p className="text-muted fw-semibold">{product.price}</p>
+                        )}
+
+                        <p className="product-description">{product.description}</p>
                         <p><strong>Stock:</strong> {product.stock}</p>
 
                         <div className="mt-4 d-flex gap-3">
                             <Button color="primary">Add to Cart</Button>
                         </div>
 
-                        {/* Average rating */}
                         <div className="my-3">
                             <h5>Average Rating: {product.averageRating.toFixed(1)} / 5</h5>
-                            <div style={{ fontSize: '1.5rem', color: '#FFD700' }}>
-                                {this.renderStars(Math.round(product.averageRating))}
-                            </div>
+                            <div className="rating-stars">{this.renderStars(Math.round(product.averageRating))}</div>
                         </div>
 
-
-                        {/* Ratings List */}
                         <div className="mt-4">
                             <h5>User Ratings:</h5>
                             {product.ratings.length === 0 && <p>No ratings yet.</p>}
                             {product.ratings.map((r, idx) => (
-                                <div key={idx} className="mb-3 p-3 border rounded">
-                                    <Row>
-                                        <Col xs="5" className="text-start">
-                                            <strong>{r.userName}</strong>
+                                <div key={idx} className="rating-box">
+                                    <Row className="align-items-center">
+                                        <Col xs="5" className="d-flex align-items-center gap-3">
+                                            {r.avatar ? (
+                                                <img src={r.avatar} alt={r.userName} className="user-avatar" />
+                                            ) : (
+                                                <div className="default-avatar">
+                                                    {r.userName?.charAt(0)}
+                                                </div>
+                                            )}
+                                            <strong className="text-dark">{r.userName}</strong>
                                         </Col>
                                         <Col xs="7" className="text-end">
                                             <small className="text-muted">
@@ -143,15 +160,12 @@ class ProductDetailsComponent extends React.Component {
                                             </small>
                                         </Col>
                                     </Row>
-                                    <div style={{ color: '#FFD700', fontSize: '1.2rem' }}>
-                                        {this.renderStars(r.rating)}
-                                    </div>
-                                    {r.comment && <p style={{ marginTop: '0.5rem' }}>{r.comment}</p>}
+                                    <div className="rating-stars mt-2">{this.renderStars(r.rating)}</div>
+                                    {r.comment && <p className="mt-2 mb-0">{r.comment}</p>}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Rating form */}
                         <div className="mt-5">
                             <h5>Rate this product</h5>
                             <Form onSubmit={this.handleSubmitRating}>
@@ -189,23 +203,12 @@ class ProductDetailsComponent extends React.Component {
                     </Col>
                 </Row>
 
-                {/* Toast */}
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: '1rem',
-                        right: '1rem',
-                        zIndex: 9999,
-                        minWidth: '250px',
-                    }}
-                >
-                    <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`}>
+                <div className="custom-toast">
+                    <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
                         <ToastHeader toggle={() => this.setState({ toastVisible: false })}>
                             {toastColor === 'success' ? 'Success' : 'Error'}
                         </ToastHeader>
-                        <ToastBody>
-                            {toastMessage}
-                        </ToastBody>
+                        <ToastBody>{toastMessage}</ToastBody>
                     </Toast>
                 </div>
             </Container>
