@@ -1,14 +1,14 @@
 import React from "react";
 import { Navbar, Nav, NavItem, NavLink, Button } from "reactstrap";
-import { FaRegUser } from "react-icons/fa";
+import { FaRegHeart, FaRegUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 import { LiaShoppingCartSolid } from "react-icons/lia";
 import { logoutUser } from "../../redux/reducers/authActions";
 import { connect } from "react-redux";
-import withNavigation from "./withNavigation";
 import api from "../utils/Api";
 import { toast } from "react-toastify";
+import withRouter from "./WithRoute";
 
 class NavBar extends React.Component {
     handleLogout = async () => {
@@ -31,6 +31,11 @@ class NavBar extends React.Component {
                     <Nav className="ms-auto" navbar>
                         {isAuthenticated ? (
                             <>
+                                <NavItem>
+                                    <NavLink tag={Link} to='/liked-products'>
+                                        <FaRegHeart size={23} />
+                                    </NavLink>
+                                </NavItem>
                                 <NavItem>
                                     <NavLink tag={Link} to="/profile">
                                         <FaRegUser size={20} />
@@ -63,4 +68,4 @@ const mapStateToProps = (state) => ({
     isAuthenticated: state.auth.isAuthenticated
 });
 
-export default connect(mapStateToProps)(withNavigation(NavBar));
+export default connect(mapStateToProps)(withRouter(NavBar));

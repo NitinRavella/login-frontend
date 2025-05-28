@@ -3,6 +3,7 @@
     perspective: 1000px;
     width: 400px;
     margin: 50px auto;
+    /* background-color: red; */
 }
 
 .card-container {
@@ -25,6 +26,7 @@
 }
 
 .card-front {
+    margin-top: 50%;
     z-index: 2;
 }
 

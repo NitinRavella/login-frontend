@@ -1,8 +1,7 @@
 import React, { Component } from 'react';
 import api from '../utils/Api';
 import { Alert, Spinner, Button, Form, FormGroup, Label, Input } from 'reactstrap';
-import Avatar from 'react-avatar';
-import withNavigation from '../components/withNavigation';
+import withRouter from '../components/WithRoute';
 
 class Profile extends Component {
     state = {
@@ -107,7 +106,9 @@ class Profile extends Component {
                             height={100}
                         />
                     ) : (
-                        <Avatar name={user?.name || 'User'} size="100" round />
+                        <div className="default-avatar">
+                            {user.fullName?.charAt(0)}
+                        </div>
                     )}
                 </div>
 
@@ -146,10 +147,10 @@ class Profile extends Component {
                         <Button color="secondary" onClick={this.handleEditToggle}>Cancel</Button>
                     </Form>
                 )}
-                {user?.isAdmin && (
+                {user?.role === 'superadmin' && (
                     <div className="mt-4">
                         <h5>Admin Actions</h5>
-                        <Button color="danger" onClick={() => this.props.navigate('/admin/users')}>
+                        <Button color="danger" onClick={() => this.props.navigate('/admin/users', { state: { loggedInUserEmail: user.email } })}>
                             Manage Users
                         </Button>
                     </div>
@@ -159,4 +160,4 @@ class Profile extends Component {
     }
 }
 
-export default withNavigation(Profile);
+export default withRouter(Profile);

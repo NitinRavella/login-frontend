@@ -32,8 +32,8 @@ class Login extends Component {
         const { email, password } = this.state;
         try {
             const res = await api.post('/login', { email, password });
-            const { token, isAdmin } = res.data;
-            this.props.loginSuccess(token, isAdmin || false);
+            const { token, role, userId } = res.data;
+            this.props.loginSuccess(token, role, userId);
             this.setState({ redirect: true });
         } catch (err) {
             toast.error('Login failed. Please check your credentials.');
@@ -46,8 +46,8 @@ class Login extends Component {
             const res = await api.post('/google-login', {
                 token: credentialResponse.credential,
             });
-            const { token, isAdmin } = res.data;
-            this.props.loginSuccess(token, isAdmin || false);
+            const { token, role } = res.data;
+            this.props.loginSuccess(token, role);
             this.setState({ redirect: true });
         } catch (err) {
             toast.error('Google login failed.');
@@ -104,14 +104,14 @@ class Login extends Component {
                             New user? <span onClick={this.props.onFlip} style={{ cursor: 'pointer', color: 'blue' }}>Register here</span>
                         </p>
                     </Form>
-                    <hr />
-                    <p className="text-center">or</p>
+                    {/* <hr /> */}
+                    {/* <p className="text-center">or</p>
                     <div className="d-flex justify-content-center">
                         <GoogleLogin
                             onSuccess={this.handleGoogleLoginSuccess}
                             onError={() => toast.error('Google Sign-In Failed')}
                         />
-                    </div>
+                    </div> */}
                 </div>
             </div>
         );

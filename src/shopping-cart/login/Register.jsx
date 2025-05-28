@@ -6,6 +6,7 @@ import { Navigate } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Avatar from 'react-avatar';
 import api from '../utils/Api';
+import withRouter from '../components/WithRoute';
 
 class Register extends Component {
     constructor(props) {
@@ -56,6 +57,8 @@ class Register extends Component {
             await api.post('/register', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+
+            this.props.navigate(`/verify-email?email=${encodeURIComponent(email)}`)
 
             this.setState({ success: true });
         } catch (err) {
@@ -179,4 +182,4 @@ class Register extends Component {
     }
 }
 
-export default Register;
+export default withRouter(Register);

@@ -28,7 +28,6 @@ class Home extends HomeHelper {
             stock: '',
             imageFile: null,
             imagePreview: null,
-            isAdmin: false,
             editingProductId: null,
             isDeleteModalOpen: false,
             productIdToDelete: null,
@@ -255,7 +254,7 @@ class Home extends HomeHelper {
 
     render() {
         const { products, filteredProducts, renderLayput, loading, searchQuery, categories } = this.state;
-        const { isAdmin } = this.props;
+        const { role } = this.props;
 
         if (!products) return <Container className="mt-5"><h4>Product not found.</h4></Container>;
 
@@ -289,7 +288,7 @@ class Home extends HomeHelper {
                                         placeholder="Search products by name or category..."
                                     />
                                 </Col>
-                                {isAdmin && (
+                                {(role === 'admin' || role === 'superadmin') && (
                                     <Col lg='12' xs='12' md='4'>
                                         <Button color="primary" onClick={this.addProducts}>Add Product</Button>
                                     </Col>
@@ -337,7 +336,7 @@ class Home extends HomeHelper {
                                                         <p className="text-muted small mb-0">{product.category}</p>
                                                     </CardBody>
                                                 </Link>
-                                                {isAdmin && (
+                                                {(role === 'admin' || role === 'superadmin') && (
                                                     <div className="d-flex justify-content-center mb-3">
                                                         <Button
                                                             color="warning"
@@ -383,7 +382,7 @@ class Home extends HomeHelper {
 
 
 const mapStateToProps = (state) => ({
-    isAdmin: state.auth.isAdmin,
+    role: state.auth.role,
 });
 
 export default connect(mapStateToProps)(Home);

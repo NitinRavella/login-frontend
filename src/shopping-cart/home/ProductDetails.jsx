@@ -4,8 +4,9 @@ import {
     Container, Row, Col, Button, Spinner, Input, Label,
     Form, FormGroup, Toast, ToastBody, ToastHeader
 } from 'reactstrap';
-import { useParams, useNavigate } from 'react-router-dom';
+import { FaRegHeart, FaHeart } from 'react-icons/fa';
 import api from '../utils/Api';
+import withRouter from '../components/WithRoute';
 import '../../styles/ProductDetails.css';
 
 class ProductDetailsComponent extends React.Component {
@@ -20,6 +21,8 @@ class ProductDetailsComponent extends React.Component {
             toastVisible: false,
             toastMessage: '',
             toastColor: 'success',
+            liked: false,
+            liking: false,
         };
     }
 
@@ -28,17 +31,33 @@ class ProductDetailsComponent extends React.Component {
     }
 
     fetchProduct = async () => {
-        const { id } = this.props.params;
+        const { id: productId } = this.props.params;
+        const userId = sessionStorage.getItem('userId');
+
         this.setState({ loading: true });
+
         try {
-            const response = await api.get(`/products/${id}`);
-            this.setState({ product: response.data, loading: false });
+            const productRes = await api.get(`/products/${productId}`);
+            let liked = false;
+
+            if (userId) {
+                const userRes = await api.get(`/${userId}/liked-products`);
+                const likedProductIds = userRes.data.map(product => product._id.toString());
+                liked = likedProductIds.includes(productId.toString());
+            }
+
+            this.setState({
+                product: productRes.data,
+                liked,
+                loading: false
+            });
         } catch (error) {
             console.error("Failed to fetch product:", error);
             this.showToast('Failed to fetch product', 'danger');
             this.setState({ loading: false });
         }
-    }
+    };
+
 
     renderStars = (rating) => {
         const maxStars = 5;
@@ -53,11 +72,11 @@ class ProductDetailsComponent extends React.Component {
         this.setState({ [e.target.name]: e.target.value });
     };
 
-    showToast = (message, color = 'success') => {
+    showToast = (message, color = 'success', duration = 1000) => {
         this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
         setTimeout(() => {
             this.setState({ toastVisible: false });
-        }, 3000);
+        }, duration);
     };
 
     handleSubmitRating = async (e) => {
@@ -83,12 +102,56 @@ class ProductDetailsComponent extends React.Component {
         } catch (error) {
             console.error(error);
             this.setState({ submitting: false });
-            this.showToast(error.response.data.message || "Failed to submit rating. Try again.", 'danger');
+            this.showToast(error.response?.data?.message || "Failed to submit rating. Try again.", 'danger');
         }
     };
 
+    handleLikeToggle = async () => {
+        const { id: productId } = this.props.params;
+        const userId = sessionStorage.getItem('userId');
+        const { liked } = this.state;
+
+        if (!userId) {
+            this.showToast("You must be logged in to like products.", 'danger');
+            return;
+        }
+
+        this.setState({ liking: true });
+
+        try {
+            if (!liked) {
+                await api.post(`/${userId}/like/${productId}`);
+                this.showToast("Product liked");
+            } else {
+                await api.delete(`/${userId}/unlike/${productId}`);
+                this.showToast("Product unliked");
+            }
+
+            this.setState({ liked: !liked });
+        } catch (error) {
+            console.error("Like toggle failed:", error);
+            this.showToast(error.response?.data?.message || "Failed to update like", 'danger');
+        } finally {
+            this.setState({ liking: false });
+        }
+    };
+
+    handleAddToCart = async () => {
+        const { id: productId } = this.props.params;
+        const userId = sessionStorage.getItem('userId')
+        try {
+            await api.post(`/${userId}/cart`, {
+                productID: productId,
+                quantity: 1,
+            })
+        } catch (err) {
+            this.showToast(err.response?.data?.message || "Failed to add product to cart")
+        }
+    }
+
+
     render() {
-        const { product, loading, rating, comment, submitting, toastVisible, toastMessage, toastColor } = this.state;
+        const { product, loading, rating, comment, submitting, toastVisible, toastMessage, toastColor, liked, liking } = this.state;
 
         if (loading) return (
             <Container className="mt-5 text-center">
@@ -128,11 +191,22 @@ class ProductDetailsComponent extends React.Component {
 
                         <p className="product-description">{product.description}</p>
                         <p><strong>Stock:</strong> {product.stock}</p>
-
-                        <div className="mt-4 d-flex gap-3">
-                            <Button color="primary">Add to Cart</Button>
-                        </div>
-
+                        {product.stock <= 0 ? '' : (
+                            <Row className="mt-4 d-flex gap-3 align-items-center">
+                                <Col xs="3">
+                                    <Button color="primary" onClick={this.handleAddToCart}>Add to Cart</Button>
+                                </Col>
+                                <Col xs='1' className="text-start">
+                                    <Button color="link" onClick={this.handleLikeToggle} disabled={liking} className="p-0">
+                                        {liked ? (
+                                            <FaHeart size={32} color="red" />
+                                        ) : (
+                                            <FaRegHeart size={32} color="grey" />
+                                        )}
+                                    </Button>
+                                </Col>
+                            </Row>
+                        )}
                         <div className="my-3">
                             <h5>Average Rating: {product.averageRating.toFixed(1)} / 5</h5>
                             <div className="rating-stars">{this.renderStars(Math.round(product.averageRating))}</div>
@@ -216,10 +290,4 @@ class ProductDetailsComponent extends React.Component {
     }
 }
 
-const ProductDetails = (props) => {
-    const params = useParams();
-    const navigate = useNavigate();
-    return <ProductDetailsComponent {...props} params={params} navigate={navigate} />;
-};
-
-export default ProductDetails;
+export default withRouter(ProductDetailsComponent);

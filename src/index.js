@@ -11,8 +11,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <Provider store={store}>
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <App />
-        </GoogleOAuthProvider>
+        {/* <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}> */}
+        <App />
+        {/* </GoogleOAuthProvider> */}
     </Provider>
 );
