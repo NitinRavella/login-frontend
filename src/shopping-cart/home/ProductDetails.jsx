@@ -1,13 +1,15 @@
 // ProductDetailsComponent.js
 import React from 'react';
 import {
-    Container, Row, Col, Button, Spinner, Input, Label,
-    Form, FormGroup, Toast, ToastBody, ToastHeader
+    Container, Row, Col, Button, Spinner, Toast, ToastBody, ToastHeader
 } from 'reactstrap';
-import { FaRegHeart, FaHeart } from 'react-icons/fa';
+import { FaRegHeart, FaHeart, FaShoppingCart } from 'react-icons/fa';
 import api from '../utils/Api';
 import withRouter from '../components/WithRoute';
+import { addToCart, toggleLike } from '../../redux/actions/productActions';
+import { connect } from 'react-redux';
 import '../../styles/ProductDetails.css';
+import ReviewForm from '../components/RatingComponent';
 
 class ProductDetailsComponent extends React.Component {
     constructor(props) {
@@ -15,14 +17,14 @@ class ProductDetailsComponent extends React.Component {
         this.state = {
             product: null,
             loading: true,
-            rating: 5,
-            comment: '',
-            submitting: false,
+            selectedImage: null,
             toastVisible: false,
             toastMessage: '',
             toastColor: 'success',
-            liked: false,
+            addedToCart: false,
+            cartAnimating: false,
             liking: false,
+            liked: false,
         };
     }
 
@@ -42,14 +44,16 @@ class ProductDetailsComponent extends React.Component {
 
             if (userId) {
                 const userRes = await api.get(`/${userId}/liked-products`);
-                const likedProductIds = userRes.data.map(product => product._id.toString());
+                console.log(userRes.data)
+                const likedProductIds = userRes.data?.likedProductsIds || [];
                 liked = likedProductIds.includes(productId.toString());
             }
 
             this.setState({
                 product: productRes.data,
                 liked,
-                loading: false
+                loading: false,
+                selectedImage: productRes.data.productImages?.[0] || productRes.data.image
             });
         } catch (error) {
             console.error("Failed to fetch product:", error);
@@ -68,10 +72,6 @@ class ProductDetailsComponent extends React.Component {
         return stars;
     };
 
-    handleInputChange = (e) => {
-        this.setState({ [e.target.name]: e.target.value });
-    };
-
     showToast = (message, color = 'success', duration = 1000) => {
         this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
         setTimeout(() => {
@@ -79,79 +79,42 @@ class ProductDetailsComponent extends React.Component {
         }, duration);
     };
 
-    handleSubmitRating = async (e) => {
-        e.preventDefault();
-        const { rating, comment } = this.state;
-        const { id } = this.props.params;
-
-        if (!rating || rating < 1 || rating > 5) {
-            this.showToast("Please provide a rating between 1 and 5.", 'danger');
-            return;
-        }
-
-        this.setState({ submitting: true });
-
-        try {
-            await api.post(`/products/${id}/rating`, {
-                rating: Number(rating),
-                comment: comment.trim() === '' ? undefined : comment.trim()
-            });
-            this.setState({ rating: 5, comment: '', submitting: false });
-            this.showToast("Thank you for your rating!", 'success');
-            this.fetchProduct();
-        } catch (error) {
-            console.error(error);
-            this.setState({ submitting: false });
-            this.showToast(error.response?.data?.message || "Failed to submit rating. Try again.", 'danger');
-        }
-    };
-
-    handleLikeToggle = async () => {
-        const { id: productId } = this.props.params;
-        const userId = sessionStorage.getItem('userId');
-        const { liked } = this.state;
-
-        if (!userId) {
-            this.showToast("You must be logged in to like products.", 'danger');
-            return;
-        }
-
+    handleLikeToggle = () => {
+        const { product, liked } = this.state;
         this.setState({ liking: true });
-
-        try {
-            if (!liked) {
-                await api.post(`/${userId}/like/${productId}`);
-                this.showToast("Product liked");
-            } else {
-                await api.delete(`/${userId}/unlike/${productId}`);
-                this.showToast("Product unliked");
-            }
-
-            this.setState({ liked: !liked });
-        } catch (error) {
-            console.error("Like toggle failed:", error);
-            this.showToast(error.response?.data?.message || "Failed to update like", 'danger');
-        } finally {
-            this.setState({ liking: false });
-        }
+        this.props.toggleLike(product._id, liked)
+            .then((newLikedStatus) => {
+                this.setState({ liked: newLikedStatus });
+                this.showToast(newLikedStatus ? "Product liked" : "Product unliked");
+            })
+            .catch((err) => {
+                this.showToast(err.message, 'danger');
+            })
+            .finally(() => {
+                this.setState({ liking: false });
+            });
     };
 
-    handleAddToCart = async () => {
-        const { id: productId } = this.props.params;
-        const userId = sessionStorage.getItem('userId')
-        try {
-            await api.post(`/${userId}/cart`, {
-                productID: productId,
-                quantity: 1,
+    handleAddToCart = () => {
+        const { product } = this.state;
+        this.setState({ cartAnimating: true, addedToCart: true });
+
+        this.props.addToCart(product)
+            .then(() => {
+                this.showToast('Added to cart!');
             })
-        } catch (err) {
-            this.showToast(err.response?.data?.message || "Failed to add product to cart")
-        }
-    }
+            .catch((err) => {
+                this.showToast(err.message, 'danger');
+                this.setState({ cartAnimating: false, addedToCart: false });
+            })
+            .finally(() => {
+                setTimeout(() => this.setState({ cartAnimating: false, addedToCart: false }), 1000);
+            });
+    };
 
 
     render() {
-        const { product, loading, rating, comment, submitting, toastVisible, toastMessage, toastColor, liked, liking } = this.state;
+        const { product, loading, toastVisible, toastMessage, toastColor, liked, liking, addedToCart, cartAnimating } = this.state;
 
         if (loading) return (
             <Container className="mt-5 text-center">
@@ -167,8 +130,30 @@ class ProductDetailsComponent extends React.Component {
         return (
             <Container className="mt-5 product-details-container">
                 <Row>
-                    <Col md="6" className="text-center">
-                        <img src={product.image} alt={product.name} className="product-image" />
+                    <Col md="6" className="product-images-column">
+                        <Row className="flex-md-row flex-column-reverse align-items-center">
+                            <Col
+                                md="3"
+                                className="thumbnail-gallery d-flex flex-md-column flex-row flex-wrap justify-content-center align-items-center"
+                            >
+                                {product.productImages && product.productImages.length > 0 ? (
+                                    product.productImages.map((img, idx) => (
+                                        <img
+                                            key={idx}
+                                            src={img}
+                                            alt={`Thumb ${idx}`}
+                                            className={`thumbnail-image ${this.state.selectedImage === img ? 'selected-thumbnail' : ''}`}
+                                            onClick={() => this.setState({ selectedImage: img })}
+                                        />
+                                    ))
+                                ) : (
+                                    <p>No images available</p>
+                                )}
+                            </Col>
+                            <Col md="9" className="main-image-container text-center mb-3">
+                                <img src={this.state.selectedImage} alt="Selected" className="main-product-image" />
+                            </Col>
+                        </Row>
                     </Col>
                     <Col md="6">
                         <h2>{product.name}</h2>
@@ -193,10 +178,22 @@ class ProductDetailsComponent extends React.Component {
                         <p><strong>Stock:</strong> {product.stock}</p>
                         {product.stock <= 0 ? '' : (
                             <Row className="mt-4 d-flex gap-3 align-items-center">
-                                <Col xs="3">
-                                    <Button color="primary" onClick={this.handleAddToCart}>Add to Cart</Button>
+                                <Col xs="6" md='4'>
+                                    <Button
+                                        className={`add-to-cart-btn btn d-flex align-items-center gap-2 ${addedToCart ? 'added' : ''}`}
+                                        onClick={this.handleAddToCart}
+                                        disabled={product.stock <= 0}
+                                        color={addedToCart ? 'success' : 'primary'}
+                                    >
+                                        <span className="btn-text">Add to Cart</span>
+                                        <span className="added-text">✔ Added!</span>
+                                        <span className={`cart-icon ${cartAnimating ? 'animated' : ''}`}>
+                                            <FaShoppingCart />
+                                        </span>
+                                    </Button>
+
                                 </Col>
-                                <Col xs='1' className="text-start">
+                                <Col xs='1' md='1' className="text-start">
                                     <Button color="link" onClick={this.handleLikeToggle} disabled={liking} className="p-0">
                                         {liked ? (
                                             <FaHeart size={32} color="red" />
@@ -236,44 +233,22 @@ class ProductDetailsComponent extends React.Component {
                                     </Row>
                                     <div className="rating-stars mt-2">{this.renderStars(r.rating)}</div>
                                     {r.comment && <p className="mt-2 mb-0">{r.comment}</p>}
+                                    {r.ratedImages && r.ratedImages.length > 0 && (
+                                        <div className="d-flex flex-wrap gap-2 mt-2">
+                                            {r.ratedImages.map((imgUrl, imgIdx) => (
+                                                <img
+                                                    key={imgIdx}
+                                                    src={imgUrl}
+                                                    alt={`Rating image ${imgIdx}`}
+                                                    className="rating-image-thumbnail"
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
-
-                        <div className="mt-5">
-                            <h5>Rate this product</h5>
-                            <Form onSubmit={this.handleSubmitRating}>
-                                <FormGroup>
-                                    <Label for="rating">Rating (1 to 5)</Label>
-                                    <Input
-                                        type="number"
-                                        id="rating"
-                                        name="rating"
-                                        min="1"
-                                        max="5"
-                                        value={rating}
-                                        onChange={this.handleInputChange}
-                                        disabled={submitting}
-                                        required
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label for="comment">Comment (optional)</Label>
-                                    <Input
-                                        type="textarea"
-                                        id="comment"
-                                        name="comment"
-                                        value={comment}
-                                        onChange={this.handleInputChange}
-                                        disabled={submitting}
-                                        placeholder="Write your review here..."
-                                    />
-                                </FormGroup>
-                                <Button color="primary" type="submit" disabled={submitting}>
-                                    {submitting ? 'Submitting...' : 'Submit Review'}
-                                </Button>
-                            </Form>
-                        </div>
+                        <ReviewForm />
                     </Col>
                 </Row>
 
@@ -289,5 +264,16 @@ class ProductDetailsComponent extends React.Component {
         );
     }
 }
+const mapStateToProps = (state) => ({
+    cart: state.product ? state.product.cart : [],
+    liked: state.product ? state.product.liked : {},
+    loading: state.product ? state.product.loading : false,
+});
 
-export default withRouter(ProductDetailsComponent);
+
+const mapDispatchToProps = {
+    addToCart,
+    toggleLike,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(ProductDetailsComponent));

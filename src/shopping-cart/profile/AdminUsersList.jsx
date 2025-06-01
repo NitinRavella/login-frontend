@@ -62,14 +62,12 @@ class AdminUsersList extends Component {
             .then(res => {
                 this.setState({ dropdownOpenId: null });
                 this.fetchUsers();
-                toast.success('Role updated successfully', res.data.message);
-                // setTimeout(() => this.setState({ success: null }), 3000);
+                toast.success('Role updated successfully', res.data?.message);
             })
             .catch(err => {
                 const msg = err.response?.data?.message || 'Failed to update role';
                 this.setState({ error: msg });
                 toast.error(msg);
-                // setTimeout(() => this.setState({ error: null }), 3000);
             });
     };
 
@@ -84,14 +82,14 @@ class AdminUsersList extends Component {
     };
 
     render() {
-        const { users, loading, error, success, dropdownOpenId } = this.state;
+        const { users, loading, dropdownOpenId } = this.state;
 
         return (
             <Container className="mt-4">
                 <h3>All Users (Admin View)</h3>
 
                 {loading && <Spinner color="primary" />}
-                {!loading && !error && (
+                {!loading && (
                     <Table striped bordered hover responsive>
                         <thead>
                             <tr>

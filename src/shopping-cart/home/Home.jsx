@@ -1,13 +1,16 @@
 import React from 'react';
-import { Button, Container, Row, Col, Input, Card, CardBody, CardTitle, Spinner } from 'reactstrap';
+import { Button, Container, Row, Col, Input, Card, CardBody, CardTitle, Spinner, CardFooter, Toast, ToastBody, ToastHeader } from 'reactstrap';
 import { Link } from 'react-router-dom';
+import { FaHeart, FaRegHeart, FaShoppingCart } from 'react-icons/fa';
 import { FcFilledFilter } from "react-icons/fc";
 import api from '../utils/Api';
 import ProductFilters from './ProductFilters';
 import { toast } from 'react-toastify';
 import HomeHelper from './HomeHelper';
 import { connect } from 'react-redux';
+import { addToCart, toggleLike, fetchLikedProducts } from '../../redux/actions/productActions';
 import '../../styles/Home.css';
+import RatingDisplay from '../components/RatingSummary';
 
 class Home extends HomeHelper {
     constructor(props) {
@@ -26,19 +29,39 @@ class Home extends HomeHelper {
             brand: '',
             category: '',
             stock: '',
-            imageFile: null,
+            imageFiles: [],
+            existingImages: [],
+            removedImageIndexes: [],
             imagePreview: null,
             editingProductId: null,
             isDeleteModalOpen: false,
             productIdToDelete: null,
             deleteConfirmationText: '',
             showFilters: false,
+            addedToCart: false,
+            cartAnimating: false,
+            cartAnimatingIds: [],
+            addedToCartIds: [],
+            liking: false,
+            liked: false,
+            toastVisible: false,
+            toastMessage: '',
+            toastColor: 'success',
         };
     }
 
     componentDidMount() {
         this.fetchProducts();
+        const verifyUser = sessionStorage.getItem('userId');
+        if (verifyUser) {
+            this.props.fetchLikedProducts();
+        }
     }
+
+    componentWillUnmount() {
+        this.state.imageFiles.forEach(img => URL.revokeObjectURL(img.preview));
+    }
+
 
     fetchProducts = async () => {
         try {
@@ -54,6 +77,7 @@ class Home extends HomeHelper {
             console.error('Error fetching products:', error);
         }
     };
+
     handleFilterChange = (filters) => {
         const { products } = this.state;
         let filtered = [...products];
@@ -81,7 +105,6 @@ class Home extends HomeHelper {
         this.setState({ filteredProducts: filtered });
     };
 
-
     addProducts = () => {
         this.setState({ renderLayput: 1 });
     };
@@ -97,7 +120,9 @@ class Home extends HomeHelper {
             offerPrice: product.offerPrice || '',
             category: product.category,
             stock: product.stock,
-            imagePreview: product.image
+            existingImages: product.productImages || [], // Store existing images
+            removedImageIndexes: [],                    // Initialize empty array
+            imageFiles: [],                             // Clear any new files
         });
     };
 
@@ -108,9 +133,10 @@ class Home extends HomeHelper {
             description: '',
             price: '',
             category: '',
-            imageFile: null,
-            imagePreview: null,
+            imageFiles: [],
+            imagePreviews: [],
             stock: '',
+            brand: '',
             editingProductId: null
         });
     };
@@ -135,15 +161,6 @@ class Home extends HomeHelper {
         this.setState({ deleteConfirmationText: e.target.value });
     };
 
-
-    handleChange = (e) => {
-        this.setState({ [e.target.name]: e.target.value }, () => {
-            if (e.target.name === 'searchQuery') {
-                this.handleSearch();
-            }
-        });
-    };
-
     handleSearch = () => {
         const { searchQuery, products } = this.state;
         const query = searchQuery.toLowerCase().trim();
@@ -156,11 +173,19 @@ class Home extends HomeHelper {
         this.setState({ filteredProducts: filtered });
     };
 
+    handleChange = (e) => {
+        this.setState({ [e.target.name]: e.target.value }, () => {
+            if (e.target.name === 'searchQuery') {
+                this.handleSearch();
+            }
+        });
+    };
+
     handleSubmit = async (e) => {
         e.preventDefault();
-        const { name, description, price, category, imageFile, stock, offerPrice } = this.state;
+        const { name, description, price, category, imageFiles, stock, offerPrice, brand } = this.state;
 
-        if (!name || !description || !price || !category || !imageFile || !stock) {
+        if (!name || !description || !price || !category || !imageFiles.length || !stock || !brand) {
             toast.error("All fields are required!");
             return;
         }
@@ -170,9 +195,13 @@ class Home extends HomeHelper {
         formData.append('description', description);
         formData.append('price', price);
         formData.append('category', category);
-        formData.append('image', imageFile);
         formData.append('stock', stock);
         formData.append('offerPrice', offerPrice || '');
+        formData.append('brand', brand || '');
+
+        imageFiles.forEach((imgObj) => {
+            formData.append('images', imgObj.file);
+        });
 
         try {
             await api.post('/products', formData, {
@@ -187,17 +216,14 @@ class Home extends HomeHelper {
         }
     };
 
+
     handleUpdate = async (e) => {
         e.preventDefault();
         const {
             name, description, price, category,
-            imageFile, stock, editingProductId, offerPrice, brand
+            imageFiles, stock, editingProductId, offerPrice, brand,
+            removedImageIndexes
         } = this.state;
-
-        if (!name || !description || !price || !category) {
-            toast.error("All fields except image are required!");
-            return;
-        }
 
         const formData = new FormData();
         formData.append('name', name);
@@ -208,9 +234,13 @@ class Home extends HomeHelper {
         formData.append('offerPrice', offerPrice || '');
         formData.append('brand', brand || '');
 
-        if (imageFile) {
-            formData.append('image', imageFile);
-        }
+        // Append new images
+        imageFiles.forEach(fileObj => {
+            formData.append('images', fileObj.file);
+        });
+
+        // Append indexes of images to remove
+        formData.append('removedImageIndexes', JSON.stringify(removedImageIndexes));
 
         try {
             await api.put(`/products/${editingProductId}`, formData, {
@@ -224,6 +254,72 @@ class Home extends HomeHelper {
             toast.error("Failed to update product.");
         }
     };
+
+    handleAddToCart = (product) => {
+        const { cartAnimatingIds } = this.state;
+        const userID = sessionStorage.getItem('token');
+        if (!userID) {
+            this.showToast('please login to Wishlist the product', 'danger')
+            return;
+        }
+
+        if (cartAnimatingIds.includes(product._id)) {
+            return;
+        }
+
+        this.setState(prevState => ({
+            cartAnimatingIds: [...prevState.cartAnimatingIds, product._id],
+        }));
+
+        this.props.addToCart(product)
+            .then(() => {
+                this.showToast('Added to cart!');
+            })
+            .catch((err) => {
+                this.showToast(err.message, 'danger');
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    this.setState(prev => ({
+                        cartAnimatingIds: prev.cartAnimatingIds.filter(id => id !== product._id),
+                    }));
+                }, 1000);
+            });
+    };
+
+
+    handleLikeToggle = (product) => {
+        const userID = sessionStorage.getItem('token')
+        if (!userID) {
+            this.showToast('please login to Wishlist the product', 'danger')
+            return;
+        }
+        if (!product || !product._id) {
+            this.showToast("Invalid product.", "danger");
+            return;
+        }
+
+        const { likedProducts, toggleLike } = this.props;
+        const isCurrentlyLiked = likedProducts.includes(product._id);
+
+        toggleLike(product._id, isCurrentlyLiked)
+            .then((newLikedStatus) => {
+                this.props.fetchLikedProducts();
+                this.showToast(newLikedStatus ? "Product liked" : "Product unliked");
+            })
+            .catch((err) => {
+                this.showToast(err.message, 'danger');
+            });
+    };
+
+
+    showToast = (message, color = 'success', duration = 1000) => {
+        this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
+        setTimeout(() => {
+            this.setState({ toastVisible: false });
+        }, duration);
+    };
+
 
     confirmDelete = async () => {
         const { productIdToDelete } = this.state;
@@ -239,22 +335,13 @@ class Home extends HomeHelper {
         }
     };
 
-    renderStars = (rating) => {
-        const maxStars = 5;
-        let stars = '';
-        for (let i = 0; i < maxStars; i++) {
-            stars += i < rating ? '★' : '☆';
-        }
-        return stars;
-    };
-
     toggleFilters = () => {
         this.setState({ showFilters: !this.state.showFilters });
     }
 
     render() {
-        const { products, filteredProducts, renderLayput, loading, searchQuery, categories } = this.state;
-        const { role } = this.props;
+        const { products, filteredProducts, renderLayput, loading, searchQuery, categories, cartAnimatingIds, liked, liking, toastColor, toastMessage, toastVisible } = this.state;
+        const { role, likedProducts, loadingLikes } = this.props;
 
         if (!products) return <Container className="mt-5"><h4>Product not found.</h4></Container>;
 
@@ -302,30 +389,25 @@ class Home extends HomeHelper {
                                                 <Link to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                                                     <div className="product-image-wrapper">
                                                         <img
-                                                            src={product.image}
+                                                            src={product.productImages[0]}
                                                             alt={product.name}
                                                             className="img-fluid product-image"
                                                         />
                                                     </div>
                                                     <CardBody className="text-center">
                                                         <CardTitle tag="h5" className="product-title fw-bold">{product.name}</CardTitle>
-                                                        <div className="my-3">
-                                                            <div style={{ fontSize: '1.5rem', color: '#FFD700' }}>
-                                                                {this.renderStars(Math.round(product.averageRating))}
-                                                            </div>
-                                                            <h5>Average Rating: {product.averageRating.toFixed(1)} / 5</h5>
-                                                        </div>
+                                                        <RatingDisplay productId={product._id} />
                                                         {!isNaN(parseFloat(product.price)) ? (
                                                             product.offerPrice ? (
-                                                                <div className="mb-1">
-                                                                    <p className="text-success fw-semibold mb-0">₹{product.offerPrice}</p>
-                                                                    <p className="text-muted mb-1" style={{ textDecoration: 'line-through' }}>
+                                                                <Row className="mb-1">
+                                                                    <Col className="text-success fw-semibold mb-0">₹{product.offerPrice}</Col>
+                                                                    <Col className="text-muted mb-1" style={{ textDecoration: 'line-through' }}>
                                                                         ₹{product.price}
-                                                                    </p>
-                                                                    <p className="text-danger small mb-0">
+                                                                    </Col>
+                                                                    <Col className="text-danger small mb-0">
                                                                         ({Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF)
-                                                                    </p>
-                                                                </div>
+                                                                    </Col>
+                                                                </Row>
                                                             ) : (
                                                                 <p className="text-success fw-semibold mb-1">₹{product.price}</p>
                                                             )
@@ -336,6 +418,33 @@ class Home extends HomeHelper {
                                                         <p className="text-muted small mb-0">{product.category}</p>
                                                     </CardBody>
                                                 </Link>
+                                                <CardFooter className="d-flex justify-content-between">
+                                                    <Button
+                                                        color="primary"
+                                                        onClick={() => this.handleAddToCart(product)}
+                                                    >
+                                                        {cartAnimatingIds.includes(product._id)
+                                                            ? <Spinner size="sm" />
+                                                            : <><FaShoppingCart /> Add to Cart</>
+                                                        }
+                                                    </Button>
+                                                    <Button color="link" onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        this.handleLikeToggle(product);
+                                                    }}
+                                                        disabled={loadingLikes}
+                                                        className="p-0 like-button"
+                                                    >
+                                                        {likedProducts && likedProducts.includes(product._id) ? (
+                                                            <FaHeart size={32} className="text-danger" />
+                                                        ) : (
+                                                            <FaRegHeart size={32} className="text-secondary" />
+                                                        )}
+                                                        {loadingLikes && (
+                                                            <Spinner size="sm" color="secondary" className="ms-2" />
+                                                        )}
+                                                    </Button>
+                                                </CardFooter>
                                                 {(role === 'admin' || role === 'superadmin') && (
                                                     <div className="d-flex justify-content-center mb-3">
                                                         <Button
@@ -375,14 +484,31 @@ class Home extends HomeHelper {
                 {renderLayput === 1 && this.renderProductModal()}
                 {renderLayput === 2 && this.renderProductModal(true)}
                 {this.renderDeleteModal()}
+                <div className="custom-toast">
+                    <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
+                        <ToastHeader toggle={() => this.setState({ toastVisible: false })}>
+                            {toastColor === 'success' ? 'Success' : 'Error'}
+                        </ToastHeader>
+                        <ToastBody>{toastMessage}</ToastBody>
+                    </Toast>
+                </div>
             </section >
         );
     }
 }
 
-
 const mapStateToProps = (state) => ({
     role: state.auth.role,
+    likedProducts: state.products.likedProducts,
+    loadingLikes: state.products.loadingLikes,
+    loadingCart: state.products.loadingCart,
 });
 
-export default connect(mapStateToProps)(Home);
+
+const mapDispatchToProps = {
+    addToCart,
+    toggleLike,
+    fetchLikedProducts,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(Home);

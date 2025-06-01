@@ -147,7 +147,7 @@ class Profile extends Component {
                         <Button color="secondary" onClick={this.handleEditToggle}>Cancel</Button>
                     </Form>
                 )}
-                {user?.role === 'superadmin' && (
+                {(user?.role === 'admin' || user?.role === 'superadmin') && (
                     <div className="mt-4">
                         <h5>Admin Actions</h5>
                         <Button color="danger" onClick={() => this.props.navigate('/admin/users', { state: { loggedInUserEmail: user.email } })}>
@@ -155,6 +155,24 @@ class Profile extends Component {
                         </Button>
                     </div>
                 )}
+                {user && (
+                    <div className="mt-3">
+                        <Button color="info" onClick={() => this.props.navigate('/order-history')}>
+                            View Order History
+                        </Button>
+                    </div>
+                )}
+
+                {(user?.role === 'admin' || user?.role === 'superadmin') &&
+                    <Button
+                        color="dark"
+                        className="mt-3"
+                        onClick={() => this.props.navigate('/admin/orders')}
+                    >
+                        Manage All Orders
+                    </Button>
+                }
+
             </div>
         );
     }

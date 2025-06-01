@@ -97,7 +97,7 @@ class AddToCart extends Component {
                                     <Card className="shadow-sm h-100 border-0 rounded-4">
                                         <div style={{ padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9f9f9' }}>
                                             <img
-                                                src={item.product?.image}
+                                                src={item.product?.productImages[0]}
                                                 alt={item.product?.name}
                                                 style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '0.5rem' }}
                                             />
@@ -165,6 +165,11 @@ class AddToCart extends Component {
                                     <div className="d-flex justify-content-between fw-bold fs-5">
                                         <span>Total Amount</span>
                                         <span>₹{summary.totalAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="text-end">
+                                        <Button color="primary" onClick={() => this.props.navigate('/checkout')} disabled={summary.totalAmount === 0}>
+                                            Proceed to Checkout
+                                        </Button>
                                     </div>
                                 </div>
                             </Col>
