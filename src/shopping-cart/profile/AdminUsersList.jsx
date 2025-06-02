@@ -3,19 +3,19 @@ import {
     Container,
     Table,
     Spinner,
-    Alert,
     Dropdown,
     DropdownToggle,
     DropdownMenu,
     DropdownItem,
     UncontrolledTooltip
 } from 'reactstrap';
-import { RiAdminFill, RiUserFill, RiUserSettingsLine } from "react-icons/ri";
+import { RiAdminFill, RiUserSettingsLine } from "react-icons/ri";
 import { BiSolidUser } from "react-icons/bi";
 import superAdmin from '../../assets/images/super-admin.png'
 import api from '../utils/Api';
 import withRouter from '../components/WithRoute';
 import { toast } from 'react-toastify';
+import '../../styles/AdminUsersList.css'
 
 class AdminUsersList extends Component {
     state = {

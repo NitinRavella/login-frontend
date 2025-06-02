@@ -3,6 +3,7 @@ import {
     Table, Spinner, Input, FormGroup, Pagination, PaginationItem, PaginationLink, Row, Col, Label
 } from 'reactstrap';
 import api from '../utils/Api';
+import '../../styles/AllOrdersTable.css'
 
 class AllOrdersTable extends Component {
     state = {
@@ -25,9 +26,12 @@ class AllOrdersTable extends Component {
     fetchAllOrders = async () => {
         try {
             const res = await api.get('/orders');
+            const sortedOrders = res.data.orders.slice().sort(
+                (a, b) => new Date(b.placedAt) - new Date(a.placedAt)
+            );
             this.setState({
-                orders: res.data.orders,
-                filteredOrders: res.data.orders,
+                orders: sortedOrders,
+                filteredOrders: sortedOrders,
                 loading: false,
             });
         } catch (err) {
@@ -80,7 +84,12 @@ class AllOrdersTable extends Component {
             filtered = filtered.filter(order => new Date(order.placedAt) <= to);
         }
 
-        this.setState({ filteredOrders: filtered, currentPage: 1 });
+        const sortedFiltered = filtered.slice().sort(
+            (a, b) => new Date(b.placedAt) - new Date(a.placedAt)
+        );
+
+
+        this.setState({ filteredOrders: sortedFiltered, currentPage: 1 });
     };
 
 
@@ -130,32 +139,62 @@ class AllOrdersTable extends Component {
         );
     };
 
+    downloadInvoice = async (orderId) => {
+        try {
+            const token = sessionStorage.getItem('token'); // or wherever your token is stored
+            const response = await api.get(`/order/${orderId}/invoice`, {
+                responseType: 'blob',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `invoice-${orderId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            console.error('Invoice download failed', err);
+            alert('Failed to download invoice');
+        }
+    };
+
+
     render() {
         const {
             filteredOrders, loading, updatingId, searchQuery,
             statusFilter, dateFrom, dateTo
         } = this.state;
 
+        const today = new Date().toISOString().split('T')[0];
         if (loading) return <div className="text-center mt-5"><Spinner /></div>;
 
         const statusOptions = ['All', 'Placed', 'Confirmed', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
         const paginatedOrders = this.paginate(filteredOrders);
 
         return (
-            <div className="container mt-4">
-                <h3>All Orders</h3>
+            <div className="container all-orders-container">
+                <h3 className="mb-4">All Orders</h3>
 
-                <Row className="mb-3">
-                    <Col md="4">
+                <Row className="filters-row d-flex align-items-end">
+                    <Col className="filter-group">
+                        <Label for="searchInput">Search</Label>
                         <Input
+                            id="searchInput"
                             type="text"
-                            placeholder="Search by Order ID, Name, or Email"
+                            placeholder="Order ID, Name, or Email"
                             value={searchQuery}
                             onChange={(e) => this.setState({ searchQuery: e.target.value }, this.handleFilterChange)}
                         />
                     </Col>
-                    <Col md="2">
+
+                    <Col className="filter-group">
+                        <Label for="statusSelect">Status</Label>
                         <Input
+                            id="statusSelect"
                             type="select"
                             value={statusFilter}
                             onChange={(e) => this.setState({ statusFilter: e.target.value }, this.handleFilterChange)}
@@ -165,100 +204,127 @@ class AllOrdersTable extends Component {
                             ))}
                         </Input>
                     </Col>
-                    <Col md="3">
+
+                    <Col className="filter-group">
+                        <Label for="dateFrom">From Date</Label>
                         <Input
+                            id="dateFrom"
                             type="date"
                             value={dateFrom}
+                            max={today}
                             onChange={(e) => this.setState({ dateFrom: e.target.value }, this.handleFilterChange)}
                         />
-                        <Label>From</Label>
                     </Col>
-                    <Col md="3">
+
+                    <Col className="filter-group">
+                        <Label for="dateTo">To Date</Label>
                         <Input
+                            id="dateTo"
                             type="date"
                             value={dateTo}
+                            max={today}
                             onChange={(e) => this.setState({ dateTo: e.target.value }, this.handleFilterChange)}
                         />
-                        <Label>To</Label>
                     </Col>
-                    <Col md="2" className="d-flex justify-content-start">
+
+                    <Col xs="12" md="auto" className="d-flex justify-content-start mb-2 mb-md-0">
                         <button
-                            className="btn btn-secondary"
+                            className="btn btn-outline-secondary"
                             onClick={this.clearFilters}
-                            style={{ height: '38px', marginBottom: '4px' }}
+                            style={{ minWidth: '110px' }}
                         >
                             Clear Filters
                         </button>
                     </Col>
                 </Row>
 
-                <Table striped responsive>
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>User Name</th>
-                            <th>Email ID</th>
-                            <th>Placed At</th>
-                            <th>Products Ordered</th>
-                            <th>Cancelled</th>
-                            <th>Status</th>
-                            <th>Change Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {paginatedOrders.length === 0 ? (
+                <div className="table-responsive">
+                    <Table striped>
+                        <thead>
                             <tr>
-                                <td colSpan="8" className="text-center">No orders found</td>
+                                <th>Order ID</th>
+                                <th>User Name</th>
+                                <th>Email ID</th>
+                                <th>Placed At</th>
+                                <th>Products Ordered</th>
+                                <th>Cancelled</th>
+                                <th>Status</th>
+                                <th>Change Status</th>
+                                <th>Invoice</th>
                             </tr>
-                        ) : (
-                            paginatedOrders.map(order => (
-                                <tr key={order._id}>
-                                    <td>{order._id}</td>
-                                    <td>{order.userId.fullName}</td>
-                                    <td>{order.userId.email}</td>
-                                    <td>{new Date(order.placedAt).toLocaleString()}</td>
-                                    <td>
-                                        {order.items?.length > 0 ? (
-                                            order.items.map((item, idx) => (
-                                                <div key={idx}>{item.product.name} x{item.quantity}</div>
-                                            ))
-                                        ) : (
-                                            <em>No items</em>
-                                        )}
-                                    </td>
-                                    <td>
-                                        {order.items?.map((item, idx) => (
-                                            <div key={idx}>
-                                                {item.cancelled
-                                                    ? <span style={{ color: 'red', fontWeight: 'bold' }}>Cancelled</span>
-                                                    : <span>Active</span>}
-                                            </div>
-                                        ))}
-                                    </td>
-                                    <td>{order.status}</td>
-                                    <td>
-                                        <FormGroup className="d-flex">
-                                            <Input
-                                                type="select"
-                                                value={order.status}
-                                                onChange={(e) => this.handleStatusChange(order._id, e.target.value)}
-                                                disabled={['Cancelled', 'Delivered'].includes(order.status) || updatingId === order._id}
-                                            >
-                                                {statusOptions.filter(s => s !== 'All').map(s => (
-                                                    <option key={s} value={s}>{s}</option>
-                                                ))}
-                                            </Input>
-                                            {updatingId === order._id && <Spinner size="sm" className="ms-2" />}
-                                        </FormGroup>
-                                    </td>
+                        </thead>
+                        <tbody>
+                            {paginatedOrders.length === 0 ? (
+                                <tr>
+                                    <td colSpan="9" className="text-center">No orders found</td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </Table>
+                            ) : (
+                                paginatedOrders.map(order => (
+                                    <tr key={order._id}>
+                                        <td className="text-break">{order._id}</td>
+                                        <td>{order.userId.fullName}</td>
+                                        <td>{order.userId.email}</td>
+                                        <td>{new Date(order.placedAt).toLocaleString()}</td>
+                                        <td className="text-start">
+                                            {order.items?.length > 0 ? (
+                                                order.items.map((item, idx) => (
+                                                    <div key={idx}>{item.product.name} x{item.quantity}</div>
+                                                ))
+                                            ) : (
+                                                <em>No items</em>
+                                            )}
+                                        </td>
+                                        <td>
+                                            {order.items?.map((item, idx) => (
+                                                <div key={idx}>
+                                                    {item.cancelled ? (
+                                                        <span className="cancelled-badge">Cancelled</span>
+                                                    ) : (
+                                                        <span>Active</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </td>
+                                        <td>
+                                            <span className={`badge-status status-${order.status.replace(/\s/g, '')}`}>
+                                                {order.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <FormGroup className="d-flex align-items-center gap-2">
+                                                <Input
+                                                    type="select"
+                                                    value={order.status}
+                                                    onChange={(e) => this.handleStatusChange(order._id, e.target.value)}
+                                                    disabled={['Cancelled', 'Delivered'].includes(order.status) || updatingId === order._id}
+                                                    style={{ minWidth: '130px' }}
+                                                >
+                                                    {statusOptions.filter(s => s !== 'All').map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </Input>
+                                                {updatingId === order._id && <Spinner size="sm" />}
+                                            </FormGroup>
+                                        </td>
+                                        <td>
+                                            <button
+                                                className="btn btn-sm btn-primary"
+                                                onClick={() => this.downloadInvoice(order._id)}
+                                            >
+                                                Download
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </Table>
+                </div>
 
                 {this.renderPagination(filteredOrders.length)}
             </div>
+
+
         );
     }
 }

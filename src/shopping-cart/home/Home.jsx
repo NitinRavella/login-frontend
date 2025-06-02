@@ -340,7 +340,7 @@ class Home extends HomeHelper {
     }
 
     render() {
-        const { products, filteredProducts, renderLayput, loading, searchQuery, categories, cartAnimatingIds, liked, liking, toastColor, toastMessage, toastVisible } = this.state;
+        const { products, filteredProducts, renderLayput, loading, searchQuery, categories, cartAnimatingIds, toastColor, toastMessage, toastVisible } = this.state;
         const { role, likedProducts, loadingLikes } = this.props;
 
         if (!products) return <Container className="mt-5"><h4>Product not found.</h4></Container>;

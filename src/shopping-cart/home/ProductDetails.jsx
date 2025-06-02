@@ -44,7 +44,6 @@ class ProductDetailsComponent extends React.Component {
 
             if (userId) {
                 const userRes = await api.get(`/${userId}/liked-products`);
-                console.log(userRes.data)
                 const likedProductIds = userRes.data?.likedProductsIds || [];
                 liked = likedProductIds.includes(productId.toString());
             }
@@ -104,6 +103,7 @@ class ProductDetailsComponent extends React.Component {
                 this.showToast('Added to cart!');
             })
             .catch((err) => {
+                console.error('error', err)
                 this.showToast(err.message, 'danger');
                 this.setState({ cartAnimating: false, addedToCart: false });
             })
@@ -141,7 +141,7 @@ class ProductDetailsComponent extends React.Component {
                                         <img
                                             key={idx}
                                             src={img}
-                                            alt={`Thumb ${idx}`}
+                                            alt={`Product view ${idx + 1}`}
                                             className={`thumbnail-image ${this.state.selectedImage === img ? 'selected-thumbnail' : ''}`}
                                             onClick={() => this.setState({ selectedImage: img })}
                                         />
@@ -239,7 +239,7 @@ class ProductDetailsComponent extends React.Component {
                                                 <img
                                                     key={imgIdx}
                                                     src={imgUrl}
-                                                    alt={`Rating image ${imgIdx}`}
+                                                    alt={`Rating ${imgIdx + 1}`}
                                                     className="rating-image-thumbnail"
                                                 />
                                             ))}

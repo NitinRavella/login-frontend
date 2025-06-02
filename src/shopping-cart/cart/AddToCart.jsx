@@ -4,40 +4,24 @@ import { Card, CardBody, CardTitle, CardText, Input, Row, Col, Button } from 're
 import { FaTrashAlt } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import withRouter from '../components/WithRoute';
+import { connect } from 'react-redux';
+import { updateCartQuantity, fetchCart } from '../../redux/actions/productActions';
 
 class AddToCart extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            cartProducts: [],
-        };
-    }
 
     componentDidMount() {
-        this.getCartProducts();
+        const { dispatch } = this.props;
+        const userId = sessionStorage.getItem('userId');
+        if (userId) {
+            dispatch(fetchCart(userId));  // fetchCart action fetches cart and populates Redux store
+        }
     }
 
-    getCartProducts = async () => {
-        const userId = sessionStorage.getItem('userId');
-        try {
-            const res = await api.get(`/${userId}/cart`);
-            this.setState({ cartProducts: res.data || [] });
-        } catch (error) {
-            toast.error('Failed to fetch cart products. Please try again later.');
-            console.error('Error fetching cart products:', error);
-            this.setState({ cartProducts: [] });
-        }
-    };
-
     handleQuantityChange = async (productId, newQty) => {
-        const userId = sessionStorage.getItem('userId');
+        const { dispatch } = this.props;
         try {
-            const res = await api.put(`/${userId}/cart/update`, {
-                productId,
-                quantity: newQty,
-            });
+            await dispatch(updateCartQuantity(productId, newQty));
             toast.success('Quantity updated successfully!');
-            this.setState({ cartProducts: res.data });
         } catch (err) {
             toast.error('Failed to update quantity. Please try again.');
             console.error('Failed to update quantity:', err);
@@ -45,11 +29,12 @@ class AddToCart extends Component {
     };
 
     handleDelete = async (productId) => {
+        const { dispatch } = this.props;
         const userId = sessionStorage.getItem('userId');
         try {
-            const res = await api.delete(`/${userId}/cart/${productId}`);
+            await api.delete(`/${userId}/cart/${productId}`);
             toast.success('Product removed from cart successfully!');
-            this.setState({ cartProducts: res.data });
+            dispatch(fetchCart(userId)); // refresh cart in Redux store after deletion
         } catch (err) {
             toast.error('Failed to delete product from cart. Please try again.');
             console.error('Failed to delete product from cart:', err);
@@ -57,7 +42,7 @@ class AddToCart extends Component {
     };
 
     getCartSummary = () => {
-        const { cartProducts } = this.state;
+        const { cartProducts } = this.props;
 
         let itemsPrice = 0;
         let discount = 0;
@@ -83,7 +68,7 @@ class AddToCart extends Component {
 
 
     render() {
-        const { cartProducts } = this.state;
+        const { cartProducts } = this.props;
         const summary = this.getCartSummary();
 
         return (
@@ -185,5 +170,10 @@ class AddToCart extends Component {
     }
 }
 
+const mapStateToProps = (state) => ({
+    cartProducts: state.products.cart,  // adapt if your reducer key differs
+    loadingCart: state.products.loadingCart,
+    cartError: state.products.cartError,
+});
 
-export default withRouter(AddToCart);
+export default connect(mapStateToProps)(withRouter(AddToCart));

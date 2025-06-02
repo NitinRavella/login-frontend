@@ -1,6 +1,6 @@
 // src/pages/Checkout.jsx
 import React, { Component } from 'react';
-import { Container, Row, Col, Card, CardBody, Input, Label, Button, FormGroup, Form } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, Input, Label, Button, FormGroup, Form, Spinner } from 'reactstrap';
 import api from '../utils/Api';
 import { toast } from 'react-toastify';
 import withRouter from '../components/WithRoute';
@@ -15,6 +15,7 @@ class Checkout extends Component {
             state: '',
             pincode: '',
             phone: '',
+            loading: false
         };
     }
 
@@ -73,13 +74,15 @@ class Checkout extends Component {
                 transactionId: ''
             }
         };
-
+        this.setState({ loading: true });
         try {
             await api.post(`/order/place`, orderDetails);
             toast.success('Order placed successfully!');
             this.props.navigate('/order-confirmation');
         } catch (err) {
             toast.error('Order failed. Try again.');
+        } finally {
+            this.setState({ loading: false }); // Stop loading
         }
     };
 
@@ -98,7 +101,7 @@ class Checkout extends Component {
 
 
     render() {
-        const { cartProducts, address, city, pincode, phone } = this.state;
+        const { cartProducts, address, city, pincode, phone, loading } = this.state;
         const summary = this.getSummary();
 
         return (
@@ -196,9 +199,22 @@ class Checkout extends Component {
                                     <span>₹{summary.totalAmount.toFixed(2)}</span>
                                 </div>
 
-                                <Button color="success" className="mt-4 w-100" onClick={this.handlePlaceOrder}>
-                                    ✅ Place Order
+                                <Button
+                                    color="success"
+                                    className="mt-4 w-100 d-flex align-items-center justify-content-center"
+                                    onClick={this.handlePlaceOrder}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Spinner size="sm" color="light" className="me-2" />
+                                            Placing Order...
+                                        </>
+                                    ) : (
+                                        '✅ Place Order'
+                                    )}
                                 </Button>
+
                             </CardBody>
                         </Card>
                     </Col>

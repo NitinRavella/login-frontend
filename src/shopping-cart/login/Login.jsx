@@ -5,9 +5,10 @@ import {
 import { Navigate } from 'react-router-dom';
 import api from '../utils/Api';
 import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
-import { GoogleLogin } from '@react-oauth/google';
+// import { GoogleLogin } from '@react-oauth/google';
 import { connect } from 'react-redux';
 import { loginSuccess } from '../../redux/reducers/authActions';
+import { fetchCart } from '../../redux/actions/productActions';
 import { toast } from 'react-toastify';
 
 class Login extends Component {
@@ -34,6 +35,7 @@ class Login extends Component {
             const res = await api.post('/login', { email, password });
             const { token, role, userId } = res.data;
             this.props.loginSuccess(token, role, userId);
+            this.props.fetchCart(userId);
             this.setState({ redirect: true });
         } catch (err) {
             toast.error('Login failed. Please check your credentials.');
@@ -120,6 +122,7 @@ class Login extends Component {
 
 const mapDispatchToProps = {
     loginSuccess,
+    fetchCart
 };
 
 export default connect(null, mapDispatchToProps)(Login);
