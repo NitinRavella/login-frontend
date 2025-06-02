@@ -2,10 +2,13 @@ import React, { Component } from 'react';
 import {
     Button, Form, FormGroup, Label, Input, InputGroup, InputGroupText, Alert
 } from 'reactstrap';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import api from '../utils/Api';
 import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
-import { saveAuthInfo } from '../utils/Auth';
+// import { GoogleLogin } from '@react-oauth/google';
+import { connect } from 'react-redux';
+import { loginSuccess } from '../../redux/reducers/authActions';
+import { fetchCart } from '../../redux/actions/productActions';
 import { toast } from 'react-toastify';
 
 class Login extends Component {
@@ -30,12 +33,27 @@ class Login extends Component {
         const { email, password } = this.state;
         try {
             const res = await api.post('/login', { email, password });
-            const { token, isAdmin } = res.data;
-            saveAuthInfo(token, isAdmin || false);
+            const { token, role, userId } = res.data;
+            this.props.loginSuccess(token, role, userId);
+            this.props.fetchCart(userId);
             this.setState({ redirect: true });
         } catch (err) {
             toast.error('Login failed. Please check your credentials.');
             this.setState({ error: err.response?.data?.message || 'Login failed' });
+        }
+    };
+
+    handleGoogleLoginSuccess = async (credentialResponse) => {
+        try {
+            const res = await api.post('/google-login', {
+                token: credentialResponse.credential,
+            });
+            const { token, role } = res.data;
+            this.props.loginSuccess(token, role);
+            this.setState({ redirect: true });
+        } catch (err) {
+            toast.error('Google login failed.');
+            console.error(err);
         }
     };
 
@@ -50,11 +68,9 @@ class Login extends Component {
                     {error && <Alert color="danger">{error}</Alert>}
                     <Form onSubmit={this.handleSubmit}>
                         <FormGroup>
-                            <Label for="username">Email</Label>
+                            <Label htmlFor="username">Email</Label>
                             <InputGroup>
-                                <InputGroupText>
-                                    <FaUser />
-                                </InputGroupText>
+                                <InputGroupText><FaUser /></InputGroupText>
                                 <Input
                                     type="text"
                                     name="email"
@@ -66,11 +82,9 @@ class Login extends Component {
                             </InputGroup>
                         </FormGroup>
                         <FormGroup>
-                            <Label for="password">Password</Label>
+                            <Label htmlFor="password">Password</Label>
                             <InputGroup>
-                                <InputGroupText>
-                                    <FaLock />
-                                </InputGroupText>
+                                <InputGroupText><FaLock /></InputGroupText>
                                 <Input
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
@@ -89,13 +103,26 @@ class Login extends Component {
                         </FormGroup>
                         <Button color="primary" block>Login</Button>
                         <p className="text-center mt-3">
-                            New user? <Link to="/register">Register here</Link>
+                            New user? <span onClick={this.props.onFlip} style={{ cursor: 'pointer', color: 'blue' }}>Register here</span>
                         </p>
                     </Form>
+                    {/* <hr /> */}
+                    {/* <p className="text-center">or</p>
+                    <div className="d-flex justify-content-center">
+                        <GoogleLogin
+                            onSuccess={this.handleGoogleLoginSuccess}
+                            onError={() => toast.error('Google Sign-In Failed')}
+                        />
+                    </div> */}
                 </div>
             </div>
         );
     }
 }
 
-export default Login;
+const mapDispatchToProps = {
+    loginSuccess,
+    fetchCart
+};
+
+export default connect(null, mapDispatchToProps)(Login);

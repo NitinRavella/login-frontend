@@ -1,0 +1,27 @@
+.wishlist-img-container {
+    position: relative;
+    overflow: hidden;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+.wishlist-img {
+    transition: transform 0.3s ease;
+    border-radius: 0.5rem 0.5rem 0 0;
+    height: 250px;
+    /* object-fit: cover; */
+    width: 100%;
+    height: auto;
+}
+
+.wishlist-img-container:hover .wishlist-img {
+    transform: scale(1.05);
+}
+
+.wishlist-card {
+    transition: box-shadow 0.3s ease;
+}
+
+.wishlist-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
