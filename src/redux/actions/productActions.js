@@ -15,7 +15,8 @@ import {
     UPDATE_CART_FAILURE,
     UPDATE_CART_SUCCESS,
     UPDATE_CART_REQUEST,
-    CLEAR_LIKED_PRODUCTS
+    CLEAR_LIKED_PRODUCTS,
+    CLEAR_CART
 } from './actionTypes';
 
 export const fetchCart = () => {
@@ -48,11 +49,12 @@ export const addToCart = (product) => {
         }
 
         dispatch({ type: ADD_TO_CART_REQUEST });
-
+        console.log("Adding to cart:", product);
         try {
             await api.post(`/${userId}/cart`, {
                 productID: product._id,
                 quantity: 1,
+                selectedSize: product.selectedSize,
             });
 
             // Await fetchCart to update the state fully
@@ -68,7 +70,7 @@ export const addToCart = (product) => {
     };
 };
 
-export const updateCartQuantity = (productId, quantity) => {
+export const updateCartQuantity = (productId, quantity, selectedSize) => {
     return async (dispatch) => {
         const userId = sessionStorage.getItem('userId');
         if (!userId) {
@@ -76,16 +78,17 @@ export const updateCartQuantity = (productId, quantity) => {
         }
 
         dispatch({ type: UPDATE_CART_REQUEST });
-
+        console.log("Updating cart quantity:", { productId, quantity, selectedSize });
         try {
             const res = await api.put(`/${userId}/cart/update`, {
                 productId,
                 quantity,
+                selectedSize, // ✅ send size
             });
 
             dispatch({
                 type: UPDATE_CART_SUCCESS,
-                payload: res.data, // updated full cart from backend
+                payload: res.data,
             });
 
             return Promise.resolve();
@@ -163,3 +166,8 @@ export const clearLikedProducts = () => {
     };
 };
 
+export const clearCart = () => {
+    return {
+        type: CLEAR_CART,
+    };
+};

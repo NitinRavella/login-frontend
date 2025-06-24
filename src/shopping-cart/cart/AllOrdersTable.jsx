@@ -6,18 +6,21 @@ import api from '../utils/Api';
 import '../../styles/AllOrdersTable.css'
 
 class AllOrdersTable extends Component {
-    state = {
-        orders: [],
-        filteredOrders: [],
-        loading: true,
-        updatingId: '',
-        searchQuery: '',
-        statusFilter: 'All',
-        dateFrom: '',
-        dateTo: '',
-        currentPage: 1,
-        ordersPerPage: 5,
-    };
+    constructor(props) {
+        super(props)
+        this.state = {
+            orders: [],
+            filteredOrders: [],
+            loading: true,
+            updatingId: '',
+            searchQuery: '',
+            statusFilter: 'All',
+            dateFrom: '',
+            dateTo: '',
+            currentPage: 1,
+            ordersPerPage: 5,
+        };
+    }
 
     componentDidMount() {
         this.fetchAllOrders();

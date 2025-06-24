@@ -13,12 +13,12 @@ import {
     UPDATE_CART_REQUEST,
     UPDATE_CART_SUCCESS,
     UPDATE_CART_FAILURE,
+    CLEAR_CART
 } from '../actions/actionTypes';
 
 const initialState = {
     cart: [],            // Each item: { product, quantity, _id }
     likedProducts: [],
-    loading: false,
     loadingLikes: false,
     loadingCart: false,
     error: null,
@@ -110,7 +110,12 @@ export default function productReducer(state = initialState, action) {
         case CLEAR_LIKED_PRODUCTS:
             return {
                 ...state,
-                likedProductIds: [], // or whatever field you store liked product IDs in
+                likedProducts: [],
+            };
+        case CLEAR_CART:
+            return {
+                ...state,
+                cart: [],
             };
 
         default:

@@ -1,14 +1,13 @@
-// src/api.js
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { API_URL } from '../services/ServiceConstants';
 
 const api = axios.create({
     baseURL: API_URL || 'http://localhost:5000/api',
-    // baseURL: 'http://192.168.1.41:3000/api',
     withCredentials: true,
 });
 
-// Request interceptor to attach access token
 api.interceptors.request.use(config => {
     const token = sessionStorage.getItem('token');
     if (token) {
@@ -17,32 +16,48 @@ api.interceptors.request.use(config => {
     return config;
 });
 
-// Response interceptor with retry logic (max 3 retries)
 api.interceptors.response.use(
     response => response,
-    async error => {
+    error => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401) {
-            originalRequest._retryCount = originalRequest._retryCount || 0;
-
-            if (originalRequest._retryCount < 3) {
-                originalRequest._retryCount += 1;
-
-                try {
-                    const res = await api.post('/refresh-token');
-                    const newToken = res.data.token;
-                    sessionStorage.setItem('token', newToken);
-                    originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-                    return api(originalRequest); // Retry original request
-                } catch (err) {
-                    // Failed to refresh token
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            return toast.promise(
+                api.post('/auth/refresh-token'),
+                {
+                    pending: '🔄 Re-authenticating your session...',
+                    success: {
+                        render() {
+                            return '✅ You’re back online! Session refreshed.';
+                        },
+                    },
+                    error: {
+                        render() {
+                            return '⚠️ Session expired. Please log in again.';
+                        },
+                    },
+                },
+                {
+                    position: 'top-right',
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    theme: 'colored',
                 }
-            }
-
-            // After 3 attempts, clear token and redirect
-            sessionStorage.removeItem('token');
-            window.location.href = '/login';
+            ).then(res => {
+                const newToken = res.data.token;
+                sessionStorage.setItem('token', newToken);
+                api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+                originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                return api(originalRequest);
+            }).catch(refreshError => {
+                sessionStorage.removeItem('token');
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
+            });
         }
 
         return Promise.reject(error);

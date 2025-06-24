@@ -17,7 +17,8 @@ import Checkout from './shopping-cart/cart/Checkout';
 import OrderConfirmation from './shopping-cart/cart/OrderConfirmation';
 import AllOrdersTable from './shopping-cart/cart/AllOrdersTable';
 import OrderHistory from './shopping-cart/cart/OrderHistory';
-import OrderDetailsPage from './shopping-cart/cart/OrderDetails';
+import OrderDetailsPage from './shopping-cart/cart/OrderDetailsPage';
+import PublicRoute from './shopping-cart/components/PublicRoute';
 
 
 class App extends Component {
@@ -31,8 +32,8 @@ class App extends Component {
                         <Route path="/" element={<Navigate to="/home" />} />
 
                         {/* Public Routes */}
-                        <Route path="/login" element={<AuthPage />} />
-                        <Route path="/verify-email" element={<VerifyEmail />} />
+                        <Route path="/login" element={<PublicRoute><AuthPage /></PublicRoute>} />
+                        <Route path="/verify-email" element={<PublicRoute><VerifyEmail /></PublicRoute>} />
                         <Route path="/home" element={<Home />} />
                         <Route path="/product/:id" element={<ProductDetails />} />
                         <Route path="/order/:orderId" element={<OrderDetailsPage />} />

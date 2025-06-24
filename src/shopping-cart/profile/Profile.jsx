@@ -1,20 +1,6 @@
 import React, { Component } from 'react';
 import api from '../utils/Api';
-import {
-    Alert,
-    Spinner,
-    Button,
-    Form,
-    FormGroup,
-    Label,
-    Input,
-    Card,
-    CardBody,
-    CardTitle,
-    CardSubtitle,
-    Row,
-    Col
-} from 'reactstrap';
+import { Alert, Spinner, Button, Form, FormGroup, Label, Input, Card, CardBody, CardTitle, CardSubtitle, Row, Col } from 'reactstrap';
 import withRouter from '../components/WithRoute';
 import DashboardLayout from '../Dasboard/DashboardLayout';
 import '../../styles/Profile.css'; // Custom CSS file for styling
@@ -80,7 +66,7 @@ class Profile extends Component {
         this.setState({ updating: true });
 
         try {
-            const res = await api.put('/profile', formData, {
+            const res = await api.put('/profile-update', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
 

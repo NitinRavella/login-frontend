@@ -1,9 +1,14 @@
 // src/pages/Checkout.jsx
 import React, { Component } from 'react';
-import { Container, Row, Col, Card, CardBody, Input, Label, Button, FormGroup, Form, Spinner } from 'reactstrap';
+import {
+    Container, Row, Col, Card, CardBody, Input, Label,
+    Button, FormGroup, Form, Spinner
+} from 'reactstrap';
 import api from '../utils/Api';
 import { toast } from 'react-toastify';
 import withRouter from '../components/WithRoute';
+import { clearCart } from '../../redux/actions/productActions';
+import { connect } from 'react-redux';
 
 class Checkout extends Component {
     constructor(props) {
@@ -21,6 +26,7 @@ class Checkout extends Component {
 
     componentDidMount() {
         this.fetchCart();
+        this.successSound = new Audio('/sounds/success.mp3');
     }
 
     fetchCart = async () => {
@@ -74,23 +80,32 @@ class Checkout extends Component {
                 transactionId: ''
             }
         };
+
         this.setState({ loading: true });
-        try {
-            await api.post(`/order/place`, orderDetails);
-            toast.success('Order placed successfully!');
+
+        toast.promise(
+            api.post(`/order/place`, orderDetails),
+            {
+                pending: 'Placing your order...',
+                success: '🎉 Order placed successfully!',
+                error: '❌ Order failed. Please try again.'
+            }
+        ).then(() => {
+            this.props.clearCart();
+            this.successSound.play().catch(console.warn);
             this.props.navigate('/order-confirmation');
-        } catch (err) {
-            toast.error('Order failed. Try again.');
-        } finally {
-            this.setState({ loading: false }); // Stop loading
-        }
+        }).catch(() => {
+            toast.error('Failed to place order. Please try again.');
+        }).finally(() => {
+            this.setState({ loading: false });
+        });
     };
 
     fetchCityState = async (pincode) => {
         if (pincode.length !== 6) return;
 
         try {
-            const res = await api.get(`/pincode/${pincode}`); // YOUR API now
+            const res = await api.get(`/pincode/${pincode}`);
             const { city, state } = res.data;
             this.setState({ city, state });
         } catch (err) {
@@ -98,7 +113,6 @@ class Checkout extends Component {
             this.setState({ city: '', state: '' });
         }
     };
-
 
     render() {
         const { cartProducts, address, city, pincode, phone, loading } = this.state;
@@ -224,4 +238,4 @@ class Checkout extends Component {
     }
 }
 
-export default withRouter(Checkout);
+export default connect(null, { clearCart })(withRouter(Checkout));

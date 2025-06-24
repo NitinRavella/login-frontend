@@ -33,7 +33,7 @@ class OrderDetailsPage extends Component {
             Placed: 'secondary',
             Confirmed: 'primary',
             Shipped: 'warning',
-            'Out for Delivery': 'info',
+            OutforDelivery: 'info',
             Delivered: 'success',
             Cancelled: 'danger',
         };
