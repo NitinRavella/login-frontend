@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button, Container, Row, Col, Input, Card, CardBody, CardTitle, Spinner, CardFooter, Toast, ToastBody, ToastHeader } from 'reactstrap';
 import { Link } from 'react-router-dom';
-import { FaHeart, FaRegHeart, FaShoppingCart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaEdit } from 'react-icons/fa';
+import { RiDeleteBin6Line } from 'react-icons/ri';
 import { FcFilledFilter } from "react-icons/fc";
 import api from '../utils/Api';
 import ProductFilters from './ProductFilters';
@@ -11,13 +12,14 @@ import { connect } from 'react-redux';
 import { addToCart, toggleLike, fetchLikedProducts } from '../../redux/actions/productActions';
 import '../../styles/Home.css';
 import RatingDisplay from '../components/RatingSummary';
+import ProductCard from '../components/ProductCard';
 
 class Home extends HomeHelper {
     constructor(props) {
         super(props);
         this.state = {
             loading: true,
-            renderLayput: 0,
+            renderLayout: 0,
             products: [],
             filteredProducts: [],
             searchQuery: '',
@@ -38,15 +40,20 @@ class Home extends HomeHelper {
             productIdToDelete: null,
             deleteConfirmationText: '',
             showFilters: false,
-            addedToCart: false,
-            cartAnimating: false,
-            cartAnimatingIds: [],
-            addedToCartIds: [],
-            liking: false,
-            liked: false,
+            isSubmitting: false,
             toastVisible: false,
             toastMessage: '',
             toastColor: 'success',
+            variantImages: {},
+            customRam: '',
+            customRom: '',
+            customRamUsed: false,
+            customRomUsed: false,
+            ram: '',
+            rom: '',
+            processor: '',
+            sizes: '',
+            colors: ''
         };
     }
 
@@ -61,7 +68,6 @@ class Home extends HomeHelper {
     componentWillUnmount() {
         this.state.imageFiles.forEach(img => URL.revokeObjectURL(img.preview));
     }
-
 
     fetchProducts = async () => {
         try {
@@ -106,12 +112,182 @@ class Home extends HomeHelper {
     };
 
     addProducts = () => {
-        this.setState({ renderLayput: 1 });
+        this.setState({ renderLayout: 1 });
     };
 
     editProducts = (product) => {
+        const variantImages = {};
+        const perColorRamRom = {};
+        const variants = product.variants && product.variants.length > 0 ? product.variants : [product];
+        const stockState = {};
+        const sizeState = {};
+        const idMap = {};
+
+        const defaultRamOptions = ['4GB', '6GB', '8GB', '12GB', '16GB'];
+        const defaultRomOptions = ['64GB', '128GB', '256GB', '512GB', '1TB'];
+
+        const isElectronics = ['phone', 'laptop', 'tablet', 'smartwatch'].includes(product.category?.toLowerCase());
+        const isFashion = ['clothing', 'shoes'].includes(product.category?.toLowerCase());
+        const isMain = product.variants && product.variants.length > 0;
+        const isVariant = !isMain;
+
+        if (isMain) {
+            variants.forEach(variant => {
+                const color = variant.color || '';
+                const ram = variant.ram || '';
+                const rom = variant.rom || '';
+                const key = isElectronics ? `${color}_${ram}_${rom}` : color;
+
+                idMap[key] = variant._id;
+
+                // Images
+                if (Array.isArray(variant.thumbnails)) {
+                    variantImages[key] = variant.thumbnails.map(url => ({
+                        previewUrl: url,
+                        file: null,
+                        originalname: url.split('/').pop()
+                    }));
+                }
+
+                if (isFashion && color) {
+                    stockState[`stock_${color}`] = variant.stock || '';
+                    sizeState[`sizes_${color}`] = (variant.sizes || []).join(', ');
+                    stockState[`price_${color}`] = variant.price || '';
+                    stockState[`offer_${color}`] = variant.offerPrice || '';
+                }
+
+                if (isElectronics && color) {
+                    if (!perColorRamRom[color]) {
+                        perColorRamRom[color] = {
+                            ramRaw: [],
+                            ramOtherInput: '',
+                            romRaw: [],
+                            romOtherInput: '',
+                            ram: [],
+                            rom: []
+                        };
+                    }
+
+                    // RAM
+                    if (ram) {
+                        if (defaultRamOptions.includes(ram)) {
+                            if (!perColorRamRom[color].ramRaw.includes(ram)) {
+                                perColorRamRom[color].ramRaw.push(ram);
+                            }
+                        } else {
+                            const existingOthers = perColorRamRom[color].ramOtherInput
+                                ? perColorRamRom[color].ramOtherInput.split(',').map(r => r.trim())
+                                : [];
+                            if (!existingOthers.includes(ram)) {
+                                existingOthers.push(ram);
+                                perColorRamRom[color].ramOtherInput = existingOthers.join(', ');
+                            }
+                        }
+                    }
+
+                    // ROM
+                    if (rom) {
+                        if (defaultRomOptions.includes(rom)) {
+                            if (!perColorRamRom[color].romRaw.includes(rom)) {
+                                perColorRamRom[color].romRaw.push(rom);
+                            }
+                        } else {
+                            const existingOthers = perColorRamRom[color].romOtherInput
+                                ? perColorRamRom[color].romOtherInput.split(',').map(r => r.trim())
+                                : [];
+                            if (!existingOthers.includes(rom)) {
+                                existingOthers.push(rom);
+                                perColorRamRom[color].romOtherInput = existingOthers.join(', ');
+                            }
+                        }
+                    }
+
+                    // Combine for form fields
+                    const allRams = [
+                        ...perColorRamRom[color].ramRaw,
+                        ...(perColorRamRom[color].ramOtherInput
+                            ? perColorRamRom[color].ramOtherInput.split(',').map(r => r.trim())
+                            : [])
+                    ];
+                    const allRoms = [
+                        ...perColorRamRom[color].romRaw,
+                        ...(perColorRamRom[color].romOtherInput
+                            ? perColorRamRom[color].romOtherInput.split(',').map(r => r.trim())
+                            : [])
+                    ];
+                    perColorRamRom[color].ram = [...new Set(allRams)].filter(Boolean);
+                    perColorRamRom[color].rom = [...new Set(allRoms)].filter(Boolean);
+
+                    const variantKey = `${color}_${ram}_${rom}`;
+                    stockState[`stock_${variantKey}`] = variant.stock || '';
+                    stockState[`price_${variantKey}`] = variant.price || '';
+                    stockState[`offer_${variantKey}`] = variant.offerPrice || '';
+                }
+            });
+        }
+
+        if (isVariant) {
+            const color = Array.isArray(product.colors) ? product.colors[0] : product.color || '';
+            const ram = product.ram || '';
+            const rom = product.rom || '';
+            const key = isElectronics ? `${color}_${ram}_${rom}` : color;
+
+            perColorRamRom[color] = {
+                ramRaw: [],
+                ramOtherInput: '',
+                romRaw: [],
+                romOtherInput: '',
+                ram: [],
+                rom: []
+            };
+
+            if (defaultRamOptions.includes(ram)) {
+                perColorRamRom[color].ramRaw.push(ram);
+            } else if (ram) {
+                perColorRamRom[color].ramOtherInput = ram;
+            }
+
+            if (defaultRomOptions.includes(rom)) {
+                perColorRamRom[color].romRaw.push(rom);
+            } else if (rom) {
+                perColorRamRom[color].romOtherInput = rom;
+            }
+
+            const allRams = [
+                ...perColorRamRom[color].ramRaw,
+                ...(perColorRamRom[color].ramOtherInput ? perColorRamRom[color].ramOtherInput.split(',').map(r => r.trim()) : [])
+            ];
+            const allRoms = [
+                ...perColorRamRom[color].romRaw,
+                ...(perColorRamRom[color].romOtherInput ? perColorRamRom[color].romOtherInput.split(',').map(r => r.trim()) : [])
+            ];
+            perColorRamRom[color].ram = [...new Set(allRams)].filter(Boolean);
+            perColorRamRom[color].rom = [...new Set(allRoms)].filter(Boolean);
+
+            stockState[`stock_${key}`] = product.stock || '';
+            stockState[`price_${key}`] = product.price || '';
+            stockState[`offer_${key}`] = product.offerPrice || '';
+
+            if (isFashion && color) {
+                sizeState[`sizes_${color}`] = (product.sizes || []).join(', ');
+            }
+
+            if (Array.isArray(product.productImages)) {
+                variantImages[key] = product.productImages.map(img => {
+                    const url = typeof img === 'string' ? img : img.url;
+                    return {
+                        previewUrl: url,
+                        file: null,
+                        originalname: url.split('/').pop()
+                    };
+                });
+            }
+
+            idMap[key] = product._id;
+        }
+
         this.setState({
-            renderLayput: 2,
+            renderLayout: 2,
             editingProductId: product._id,
             name: product.name,
             description: product.description,
@@ -119,16 +295,27 @@ class Home extends HomeHelper {
             brand: product.brand || '',
             offerPrice: product.offerPrice || '',
             category: product.category,
-            stock: product.stock,
-            existingImages: product.productImages || [], // Store existing images
-            removedImageIndexes: [],                    // Initialize empty array
-            imageFiles: [],                             // Clear any new files
+            stock: product.stock || 0,
+            existingImages: product.productImages || [],
+            removedImageIndexes: [],
+            imageFiles: [],
+            ram: product.ram || '',
+            rom: product.rom || '',
+            processor: product?.processor || '',
+            colors: product.colors?.length ? product.colors.join(', ') : product.color || '',
+            sizes: product.sizes?.length ? product.sizes.join(', ') : '',
+            variantImages,
+            perColorRamRom,
+            variantIdMap: idMap,
+            ...stockState,
+            ...sizeState,
+            isMainProduct: isMain
         });
     };
 
     closeModal = () => {
         this.setState({
-            renderLayput: 0,
+            renderLayout: 0,
             name: '',
             description: '',
             price: '',
@@ -137,6 +324,11 @@ class Home extends HomeHelper {
             imagePreviews: [],
             stock: '',
             brand: '',
+            ram: '',
+            rom: '',
+            processor: '',
+            sizes: '',
+            colors: '',
             editingProductId: null
         });
     };
@@ -183,110 +375,269 @@ class Home extends HomeHelper {
 
     handleSubmit = async (e) => {
         e.preventDefault();
-        const { name, description, price, category, imageFiles, stock, offerPrice, brand } = this.state;
+        const {
+            name, description, price, category, offerPrice, brand,
+            processor, colors, variantImages = {}, perColorRamRom = {}
+        } = this.state;
 
-        if (!name || !description || !price || !category || !imageFiles.length || !stock || !brand) {
+        if (!name || !brand || !description || !category || !brand) {
             toast.error("All fields are required!");
             return;
         }
 
+        this.setState({ isSubmitting: true });
+
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', description);
-        formData.append('price', price);
+        // formData.append('price', price);
         formData.append('category', category);
-        formData.append('stock', stock);
-        formData.append('offerPrice', offerPrice || '');
-        formData.append('brand', brand || '');
+        // formData.append('offerPrice', offerPrice || ''); 
+        formData.append('brand', brand);
+        formData.append('colors', colors || '');
+        formData.append('specifications', JSON.stringify({ processor: processor || '' }));
 
-        imageFiles.forEach((imgObj) => {
-            formData.append('images', imgObj.file);
-        });
+        const lowerCategory = category.toLowerCase();
+        const colorArr = (colors || '').split(',').map(c => c.trim()).filter(Boolean);
+        const variants = [];
+
+        // FASHION PRODUCTS: clothing/shoes
+        if (['shoes', 'clothing'].includes(lowerCategory)) {
+            for (let color of colorArr) {
+                const sizes = this.state[`sizes_${color}`] || '';
+                const sizeArr = Array.isArray(sizes) ? sizes : (sizes || '').split(',').map(s => s.trim()).filter(Boolean);
+                const stockVal = this.state[`stock_${color}`] || '';
+                const images = variantImages[color] || [];
+                const variantPrice = this.state[`price_${color}`] || '';
+                const variantOffer = this.state[`offer_${color}`] || '';
+
+                if (!images.length) {
+                    toast.warn(`Please upload images for color: ${color}`);
+                    this.setState({ isSubmitting: false });
+                    return;
+                }
+
+                images.forEach(imgObj => {
+                    formData.append('variantImages', imgObj.file);
+                });
+
+                variants.push({
+                    name: color,
+                    color,
+                    stock: stockVal,
+                    sizes: sizeArr,
+                    price: variantPrice,
+                    offerPrice: variantOffer,
+                    thumbnails: images
+                        .filter(img => img.file?.name)
+                        .map(img => img.file.name),
+                });
+            }
+        }
+
+        // ELECTRONICS PRODUCTS
+        if (['phone', 'laptop', 'tablet', 'smartwatch'].includes(lowerCategory)) {
+            for (let color of colorArr) {
+                console.log('perColorRamRom', perColorRamRom, color)
+                const ramList = Array.isArray(perColorRamRom[color]?.ram)
+                    ? perColorRamRom[color].ram
+                    : (perColorRamRom[color]?.ram || '').split(',').map(r => r.trim()).filter(Boolean);
+                const ramOther = perColorRamRom[color]?.ramOther?.trim();
+                const ramArr = [...ramList, ...(ramOther ? [ramOther] : [])];
+
+                const romList = Array.isArray(perColorRamRom[color]?.rom)
+                    ? perColorRamRom[color].rom
+                    : (perColorRamRom[color]?.rom || '').split(',').map(r => r.trim()).filter(Boolean);
+                const romOther = perColorRamRom[color]?.romOther?.trim();
+                const romArr = [...romList, ...(romOther ? [romOther] : [])];
+
+                for (let ram of ramArr) {
+                    for (let rom of romArr) {
+                        const key = `${color}_${ram}_${rom}`;
+                        const stockVal = this.state[`stock_${key}`] || '';
+                        const images = variantImages[key] || [];
+                        const variantPrice = this.state[`price_${key}`] || '';
+                        const variantOffer = this.state[`offer_${key}`] || '';
+
+                        if (!images.length) {
+                            toast.warn(`Please upload images for variant: ${ram} + ${rom} - ${color}`);
+                            this.setState({ isSubmitting: false });
+                            return;
+                        }
+
+                        images.forEach(imgObj => {
+                            formData.append('variantImages', imgObj.file);
+                        });
+                        console.log('stockVal', stockVal, 'ram', ram, 'rom', rom, 'color', color, 'images', images);
+                        variants.push({
+                            name: `${ram} + ${rom} - ${color}`,
+                            color,
+                            ram,
+                            rom,
+                            stock: stockVal,
+                            price: variantPrice,
+                            offerPrice: variantOffer,
+                            thumbnails: images
+                                .filter(img => img.file?.name)
+                                .map(img => img.file.name),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Send the variant array
+        formData.append('variants', JSON.stringify(variants));
 
         try {
             await api.post('/products', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+
             toast.success("Product added successfully!");
             this.fetchProducts();
             this.closeModal();
         } catch (error) {
             console.error('Error adding product:', error);
             toast.error("Failed to add product.");
+        } finally {
+            this.setState({ isSubmitting: false });
         }
     };
 
-
     handleUpdate = async (e) => {
         e.preventDefault();
+        this.setState({ isSubmitting: true });
         const {
-            name, description, price, category,
-            imageFiles, stock, editingProductId, offerPrice, brand,
-            removedImageIndexes
+            name, description, brand, category, price, offerPrice, processor,
+            colors, perColorRamRom, variantImages, editingProductId, isMainProduct,
+            variantIdMap = {}
         } = this.state;
 
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', description);
-        formData.append('price', price);
-        formData.append('category', category);
-        formData.append('stock', stock);
-        formData.append('offerPrice', offerPrice || '');
         formData.append('brand', brand || '');
+        formData.append('category', category);
+        // formData.append('price', price);
+        // if (offerPrice) formData.append('offerPrice', offerPrice);
 
-        // Append new images
-        imageFiles.forEach(fileObj => {
-            formData.append('images', fileObj.file);
-        });
+        const isElectronics = ['phone', 'laptop', 'tablet', 'smartwatch'].includes(category?.toLowerCase());
+        const isFashion = ['clothing', 'shoes'].includes(category?.toLowerCase());
+        const parsedColors = (colors || '').split(',').map(c => c.trim()).filter(Boolean);
 
-        // Append indexes of images to remove
-        formData.append('removedImageIndexes', JSON.stringify(removedImageIndexes));
+        if (isMainProduct) {
+            if (isElectronics && processor) {
+                formData.append('specifications', JSON.stringify({ processor }));
+            }
 
-        try {
-            await api.put(`/products/${editingProductId}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            const variantList = [];
+
+            if (isFashion) {
+                for (let color of parsedColors) {
+                    const stock = this.state[`stock_${color}`] || 0;
+                    const sizesRaw = this.state[`sizes_${color}`] || '';
+                    const sizes = Array.isArray(sizesRaw) ? sizesRaw : (sizesRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+                    const thumbnails = (variantImages[color] || [])
+                        .map(img => img.originalname || img.file?.name)
+                        .filter(Boolean);
+
+                    const variantData = { color, stock, sizes, thumbnails };
+                    if (variantIdMap[color]) {
+                        variantData._id = variantIdMap[color];
+                    }
+
+                    variantList.push(variantData);
+
+                    (variantImages[color] || []).forEach(img => {
+                        if (img.file) formData.append('variantImages', img.file, img.originalname);
+                    });
+                }
+            } else if (isElectronics) {
+                for (let color of parsedColors) {
+                    const ramList = (perColorRamRom[color]?.ram || '').split(',').map(r => r.trim()).filter(Boolean);
+                    const romList = (perColorRamRom[color]?.rom || '').split(',').map(r => r.trim()).filter(Boolean);
+
+                    for (let ram of ramList) {
+                        for (let rom of romList) {
+                            const key = `${color}_${ram}_${rom}`;
+                            const stock = this.state[`stock_${key}`] || 0;
+                            const thumbnails = (variantImages[color] || [])
+                                .map(img => img.originalname || img.file?.name)
+                                .filter(Boolean);
+                            console.log('variantImages', variantImages, key, thumbnails);
+                            const variantData = { color, ram, rom, stock, thumbnails };
+                            if (variantIdMap[key]) {
+                                variantData._id = variantIdMap[key];
+                            }
+
+                            variantList.push(variantData);
+
+                            (variantImages[key] || []).forEach(img => {
+                                if (img.file) formData.append('variantImages', img.file, img.originalname);
+                            });
+                        }
+                    }
+                }
+            }
+
+            formData.append('colors', colors);
+            formData.append('variants', JSON.stringify(variantList));
+
+            try {
+                const res = await api.put(`/products/${editingProductId}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                this.fetchProducts()
+                toast.success(res.data.message || 'Product updated successfully');
+                this.setState({ renderLayout: 0 });
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to update product');
+            }
+        } else {
+            // ✅ Variant update
+            const parsedColorList = (colors || '').split(',').map(c => c.trim()).filter(Boolean);
+            const color = parsedColorList[0] || '';
+            const ram = this.state.ram || '';
+            const rom = this.state.rom || '';
+            const sizesRaw = this.state[`sizes_${color}`] || '';
+            const sizes = Array.isArray(sizesRaw) ? sizesRaw : (sizesRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+            const key = isElectronics ? `${color}_${ram}_${rom}` : color;
+
+            const stock = this.state[`stock_${key}`] || this.state.stock || 0;
+            const thumbnails = (variantImages[key] || []).map(img => img.originalname);
+
+            formData.append('color', color);
+            if (ram) formData.append('ram', ram);
+            if (rom) formData.append('rom', rom);
+            formData.append('stock', stock);
+            if (sizes.length > 0) {
+                formData.append('sizes', JSON.stringify(sizes));
+            }
+            formData.append('thumbnails', JSON.stringify(thumbnails));
+
+            (variantImages[key] || []).forEach(img => {
+                if (img.file) {
+                    formData.append('variantImages', img.file, img.originalname);
+                }
             });
-            toast.success("Product updated successfully!");
-            this.fetchProducts();
-            this.closeModal();
-        } catch (error) {
-            console.error('Error updating product:', error);
-            toast.error("Failed to update product.");
+
+            try {
+                const res = await api.put(`/variants/${editingProductId}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                this.fetchProducts()
+                toast.success(res.data.message || 'Variant updated successfully');
+                this.setState({ renderLayout: 0 });
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to update variant');
+            }
         }
+
+        this.setState({ isSubmitting: false });
     };
-
-    handleAddToCart = (product) => {
-        const { cartAnimatingIds } = this.state;
-        const userID = sessionStorage.getItem('token');
-        if (!userID) {
-            this.showToast('please login to Wishlist the product', 'danger')
-            return;
-        }
-
-        if (cartAnimatingIds.includes(product._id)) {
-            return;
-        }
-
-        this.setState(prevState => ({
-            cartAnimatingIds: [...prevState.cartAnimatingIds, product._id],
-        }));
-
-        this.props.addToCart(product)
-            .then(() => {
-                this.showToast('Added to cart!');
-            })
-            .catch((err) => {
-                this.showToast(err.message, 'danger');
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    this.setState(prev => ({
-                        cartAnimatingIds: prev.cartAnimatingIds.filter(id => id !== product._id),
-                    }));
-                }, 1000);
-            });
-    };
-
 
     handleLikeToggle = (product) => {
         const userID = sessionStorage.getItem('token')
@@ -311,7 +662,6 @@ class Home extends HomeHelper {
                 this.showToast(err.message, 'danger');
             });
     };
-
 
     showToast = (message, color = 'success', duration = 1000) => {
         this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
@@ -340,15 +690,15 @@ class Home extends HomeHelper {
     }
 
     render() {
-        const { products, filteredProducts, renderLayput, loading, searchQuery, categories, cartAnimatingIds, toastColor, toastMessage, toastVisible } = this.state;
-        const { role, likedProducts, loadingLikes } = this.props;
+        const { products, filteredProducts, renderLayout, loading, searchQuery, categories, toastColor, toastMessage, toastVisible } = this.state;
+        const { role, likedProducts } = this.props;
 
         if (!products) return <Container className="mt-5"><h4>Product not found.</h4></Container>;
 
         return (
             <section className="home-container">
                 {loading && <Spinner color="primary" className='text-center' style={{ width: '3rem', height: '3rem' }} />}
-                {!loading && (
+                {!loading && renderLayout === 0 && (
                     <Row>
                         <Col xs="12" className="d-md-none mb-3 d-flex justify-content-end">
                             <Button className='bg-transparent' onClick={this.toggleFilters}>
@@ -387,16 +737,63 @@ class Home extends HomeHelper {
                                         <Col key={product._id} sm="6" md="4" lg="3" className="mb-4">
                                             <Card className="h-100 product-card shadow-sm border-0">
                                                 <Link to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                                    <div className="product-image-wrapper">
+                                                    <div className="product-image-wrapper position-relative">
+                                                        {(role === 'admin' || role === 'superadmin') && (
+                                                            <Row className="admin-icon-row">
+                                                                <Col xs="6" className="text-start">
+                                                                    <RiDeleteBin6Line
+                                                                        className="admin-icon delete"
+                                                                        title="Delete Product"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            this.openDeleteModal(product._id);
+                                                                        }}
+                                                                    />
+                                                                </Col>
+                                                                <Col xs="6" className="text-end">
+                                                                    <FaEdit
+                                                                        className="admin-icon edit"
+                                                                        title="Edit Product"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            this.editProducts(product);
+                                                                        }}
+                                                                    />
+                                                                </Col>
+                                                            </Row>
+                                                        )}
+
                                                         <img
                                                             src={product.productImages[0]}
                                                             alt={product.name}
                                                             className="img-fluid product-image"
                                                         />
+
+                                                        {/* Hover Like Icon */}
+                                                        <div className="wishlist-overlay">
+                                                            <button
+                                                                className="wishlist-bar-btn"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    this.handleLikeToggle(product);
+                                                                }}
+                                                            >
+                                                                {likedProducts && likedProducts.includes(product._id) ? (
+                                                                    <FaHeart size={14} className="me-2 text-danger" />
+                                                                ) : (
+                                                                    <FaRegHeart size={14} className="me-2 text-dark" />
+                                                                )}
+                                                                <span className="wishlist-text">WISHLIST</span>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <CardBody className="text-center">
                                                         <CardTitle tag="h5" className="product-title fw-bold">{product.name}</CardTitle>
                                                         <RatingDisplay productId={product._id} />
+
                                                         {!isNaN(parseFloat(product.price)) ? (
                                                             product.offerPrice ? (
                                                                 <Row className="mb-1">
@@ -418,55 +815,6 @@ class Home extends HomeHelper {
                                                         <p className="text-muted small mb-0">{product.category}</p>
                                                     </CardBody>
                                                 </Link>
-                                                <CardFooter className="d-flex justify-content-between">
-                                                    <Button
-                                                        color="primary"
-                                                        onClick={() => this.handleAddToCart(product)}
-                                                    >
-                                                        {cartAnimatingIds.includes(product._id)
-                                                            ? <Spinner size="sm" />
-                                                            : <><FaShoppingCart /> Add to Cart</>
-                                                        }
-                                                    </Button>
-                                                    <Button color="link" onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        this.handleLikeToggle(product);
-                                                    }}
-                                                        disabled={loadingLikes}
-                                                        className="p-0 like-button"
-                                                    >
-                                                        {likedProducts && likedProducts.includes(product._id) ? (
-                                                            <FaHeart size={32} className="text-danger" />
-                                                        ) : (
-                                                            <FaRegHeart size={32} className="text-secondary" />
-                                                        )}
-                                                        {loadingLikes && (
-                                                            <Spinner size="sm" color="secondary" className="ms-2" />
-                                                        )}
-                                                    </Button>
-                                                </CardFooter>
-                                                {(role === 'admin' || role === 'superadmin') && (
-                                                    <div className="d-flex justify-content-center mb-3">
-                                                        <Button
-                                                            color="warning"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                this.editProducts(product);
-                                                            }}
-                                                            className="me-2"
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            color="danger"
-                                                            size="sm"
-                                                            onClick={() => this.openDeleteModal(product._id)}
-                                                        >
-                                                            Delete
-                                                        </Button>
-                                                    </div>
-                                                )}
                                             </Card>
                                         </Col>
                                     ))
@@ -481,8 +829,8 @@ class Home extends HomeHelper {
                 )
                 }
 
-                {renderLayput === 1 && this.renderProductModal()}
-                {renderLayput === 2 && this.renderProductModal(true)}
+                {renderLayout === 1 && this.renderProductFormInline()}
+                {renderLayout === 2 && this.renderProductFormInline(true)}
                 {this.renderDeleteModal()}
                 <div className="custom-toast">
                     <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
@@ -500,8 +848,6 @@ class Home extends HomeHelper {
 const mapStateToProps = (state) => ({
     role: state.auth.role,
     likedProducts: state.products.likedProducts,
-    loadingLikes: state.products.loadingLikes,
-    loadingCart: state.products.loadingCart,
 });
 
 

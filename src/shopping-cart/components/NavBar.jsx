@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 import { LiaShoppingCartSolid } from "react-icons/lia";
 import { logoutUser } from "../../redux/reducers/authActions";
-import { clearLikedProducts } from "../../redux/actions/productActions";
+import { clearLikedProducts, clearCart } from "../../redux/actions/productActions";
 import { connect } from "react-redux";
 import api from "../utils/Api";
 import { toast } from "react-toastify";
@@ -27,6 +27,7 @@ class NavBar extends React.Component {
             await api.post("/logout");
             this.props.dispatch(logoutUser());
             this.props.dispatch(clearLikedProducts())
+            this.props.dispatch(clearCart())
             this.props.navigate('/home');
             toast.success("Logged out successfully!");
         } catch (error) {
@@ -39,7 +40,7 @@ class NavBar extends React.Component {
         return (
             <>
                 <Navbar color="light" light expand="md">
-                    <Link to="/home" className="navbar-brand">MyApp</Link>
+                    <Link to="/home" className="navbar-brand">N Shop</Link>
                     <Nav className="ms-auto" navbar>
                         {isAuthenticated ? (
                             <>
@@ -100,6 +101,7 @@ const mapStateToProps = (state) => {
         isAuthenticated: state.auth?.isAuthenticated,
         cartCount,
         clearLikedProducts,
+        clearCart
     };
 };
 

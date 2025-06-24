@@ -13,17 +13,17 @@ class AddToCart extends Component {
         const { dispatch } = this.props;
         const userId = sessionStorage.getItem('userId');
         if (userId) {
-            dispatch(fetchCart(userId));  // fetchCart action fetches cart and populates Redux store
+            dispatch(fetchCart(userId));
         }
     }
 
-    handleQuantityChange = async (productId, newQty) => {
+    handleQuantityChange = async (productId, newQty, selectedSize) => {
         const { dispatch } = this.props;
         try {
-            await dispatch(updateCartQuantity(productId, newQty));
+            await dispatch(updateCartQuantity(productId, newQty, selectedSize));
             toast.success('Quantity updated successfully!');
         } catch (err) {
-            toast.error('Failed to update quantity. Please try again.');
+            toast.error(err?.response.data?.message);
             console.error('Failed to update quantity:', err);
         }
     };
@@ -34,7 +34,7 @@ class AddToCart extends Component {
         try {
             await api.delete(`/${userId}/cart/${productId}`);
             toast.success('Product removed from cart successfully!');
-            dispatch(fetchCart(userId)); // refresh cart in Redux store after deletion
+            dispatch(fetchCart(userId));
         } catch (err) {
             toast.error('Failed to delete product from cart. Please try again.');
             console.error('Failed to delete product from cart:', err);
@@ -88,20 +88,39 @@ class AddToCart extends Component {
                                             />
                                         </div>
                                         <CardBody className="d-flex flex-column">
-                                            <CardTitle tag="h5" className="product-title mb-2" style={{ cursor: 'pointer' }} onClick={() => this.props.navigate(`/product/${item.product._id}`)}>{item.product?.name}</CardTitle>
-                                            <CardText className="text-muted mb-2">Quantity:</CardText>
-                                            <Input
-                                                type="select"
-                                                className="mb-3 w-50"
-                                                value={item.quantity}
-                                                onChange={(e) => this.handleQuantityChange(item.product._id, parseInt(e.target.value))}
-                                            >
-                                                {[...Array(10).keys()].map((num) => (
-                                                    <option key={num + 1} value={num + 1}>
-                                                        {num + 1}
-                                                    </option>
-                                                ))}
-                                            </Input>
+                                            <CardTitle tag="h5" className="product-title mb-2" style={{ cursor: 'pointer', color: 'blue' }} onClick={() => this.props.navigate(`/product/${item.product._id}`)}>{item.product?.name}</CardTitle>
+                                            <Row>
+                                                <Col>
+                                                    <CardText className="text-muted mb-2">Quantity:</CardText>
+                                                    <Input
+                                                        type="select"
+                                                        className="mb-3 w-50"
+                                                        value={item.quantity}
+                                                        onChange={(e) => this.handleQuantityChange(item.product._id, parseInt(e.target.value), item.selectedSize)}
+                                                    >
+                                                        {[...Array(10).keys()].map((num) => (
+                                                            <option key={num + 1} value={num + 1}>
+                                                                {num + 1}
+                                                            </option>
+                                                        ))}
+                                                    </Input>
+                                                </Col>
+                                                <Col>
+                                                    <CardText className="text-muted mb-2">Size:</CardText>
+                                                    <Input
+                                                        type="select"
+                                                        className="mb-3 w-50"
+                                                        value={item.selectedSize || ''}
+                                                        onChange={(e) => this.handleQuantityChange(item.product._id, item.quantity, e.target.value)}
+                                                    >
+                                                        {item.product?.sizes?.map((size, idx) => (
+                                                            <option key={idx} value={size}>
+                                                                {size}
+                                                            </option>
+                                                        ))}
+                                                    </Input>
+                                                </Col>
+                                            </Row>
 
                                             {item.product?.offerPrice ? (
                                                 <>
@@ -122,7 +141,7 @@ class AddToCart extends Component {
                                                     color="danger"
                                                     size="sm"
                                                     className="rounded-circle"
-                                                    onClick={() => this.handleDelete(item.product._id)}
+                                                    onClick={() => this.handleDelete(item._id)}
                                                 >
                                                     <FaTrashAlt />
                                                 </Button>
@@ -171,7 +190,7 @@ class AddToCart extends Component {
 }
 
 const mapStateToProps = (state) => ({
-    cartProducts: state.products.cart,  // adapt if your reducer key differs
+    cartProducts: state.products.cart,
     loadingCart: state.products.loadingCart,
     cartError: state.products.cartError,
 });
