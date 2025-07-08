@@ -17,8 +17,8 @@ import {
 } from '../actions/actionTypes';
 
 const initialState = {
-    cart: [],            // Each item: { product, quantity, _id }
-    likedProducts: [],
+    cart: [],
+    likedProducts: [],  // [{ productId, variantId }]
     loadingLikes: false,
     loadingCart: false,
     error: null,
@@ -29,31 +29,6 @@ const initialState = {
 export default function productReducer(state = initialState, action) {
     switch (action.type) {
         case ADD_TO_CART_REQUEST:
-            return {
-                ...state,
-                loadingCart: true,
-                cartError: null,
-            };
-
-        case FETCH_CART_SUCCESS:
-            return {
-                ...state,
-                cart: action.payload,  // payload is full cart array from backend
-                loadingCart: false,
-            };
-
-        case ADD_TO_CART_SUCCESS:
-            return {
-                ...state,
-                loadingCart: false,
-            };
-
-        case ADD_TO_CART_FAILURE:
-            return {
-                ...state,
-                loadingCart: false,
-                cartError: action.payload,
-            };
         case UPDATE_CART_REQUEST:
             return {
                 ...state,
@@ -61,13 +36,22 @@ export default function productReducer(state = initialState, action) {
                 cartError: null,
             };
 
+        case ADD_TO_CART_SUCCESS:
         case UPDATE_CART_SUCCESS:
             return {
                 ...state,
-                cart: action.payload,  // updated cart array from server
+                cart: action.payload,
                 loadingCart: false,
             };
 
+        case FETCH_CART_SUCCESS:
+            return {
+                ...state,
+                cart: action.payload,
+                loadingCart: false,
+            };
+
+        case ADD_TO_CART_FAILURE:
         case UPDATE_CART_FAILURE:
             return {
                 ...state,
@@ -83,20 +67,33 @@ export default function productReducer(state = initialState, action) {
                 likesError: null,
             };
 
-        case TOGGLE_LIKE_SUCCESS:
-            const { productId, liked } = action.payload;
+        case TOGGLE_LIKE_SUCCESS: {
+            const { productId, variantId, liked } = action.payload;
+            const existing = state.likedProducts.some(
+                item => item.productId === productId && item.variantId === variantId
+            );
+
             return {
                 ...state,
                 likedProducts: liked
-                    ? [...new Set([...state.likedProducts, productId])]
-                    : state.likedProducts.filter(id => id !== productId),
+                    ? existing
+                        ? state.likedProducts // already liked, do nothing
+                        : [...state.likedProducts, { productId, variantId }]
+                    : state.likedProducts.filter(
+                        item =>
+                            !(item.productId === productId && item.variantId === variantId)
+                    ),
                 loadingLikes: false,
             };
+        }
 
         case FETCH_LIKED_PRODUCTS_SUCCESS:
             return {
                 ...state,
-                likedProducts: action.payload.map(p => p._id || p),
+                likedProducts: action.payload.map(p => ({
+                    productId: p.productId || p._id,
+                    variantId: p.variantId
+                })),
                 loadingLikes: false,
             };
 
@@ -107,11 +104,13 @@ export default function productReducer(state = initialState, action) {
                 loadingLikes: false,
                 likesError: action.payload,
             };
+
         case CLEAR_LIKED_PRODUCTS:
             return {
                 ...state,
                 likedProducts: [],
             };
+
         case CLEAR_CART:
             return {
                 ...state,

@@ -31,7 +31,6 @@ const MultiSelectWithOther = ({
             onChange(newValues);
         }
     };
-    console.log('MulitiSelect With other', selectedValues, otherInput)
     return (
         <FormGroup>
             <Label className="fw-semibold d-flex align-items-center gap-1">

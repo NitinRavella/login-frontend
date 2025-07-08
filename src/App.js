@@ -25,7 +25,7 @@ class App extends Component {
     render() {
         return (
             <>
-                <ToastContainer position="top-right" autoClose={1000} hideProgressBar />
+                <ToastContainer />
                 <Router>
                     <NavBar />
                     <Routes>

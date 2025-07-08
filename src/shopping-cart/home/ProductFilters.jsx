@@ -1,177 +1,206 @@
 import React from 'react';
-import { Form, FormGroup, Label, Input, Button, Row, Col } from 'reactstrap';
+import { Button } from 'reactstrap';
+import '../../styles/ProductFilters.css';
 
 class ProductFilters extends React.Component {
     constructor(props) {
         super(props);
-        const prices = props.product && props.product.length > 0
-            ? props.product.map(p => parseFloat(p.price)).filter(p => !isNaN(p))
-            : [0];
 
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
+        const prices = this.getAllPrices(props.product);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
 
         this.state = {
             selectedCategory: '',
             selectedBrands: [],
-            minPrice,
-            maxPrice,
+            selectedColors: [],
+            selectedRams: [],
+            selectedRoms: [],
+            selectedSizes: [],
             inStockOnly: false,
-            searchTerm: ''
+            priceRange: [min, max],
+            minPrice: min,
+            maxPrice: max,
         };
     }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.product !== this.props.product) {
+            const prices = this.getAllPrices(this.props.product);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            this.setState({
+                priceRange: [min, max],
+                minPrice: min,
+                maxPrice: max
+            }, () => {
+                this.props.onFilterChange(this.state);
+            });
+        }
+    }
+
+    getAllPrices = (products) => {
+        return (products || [])
+            .flatMap(p => p.variants?.map(v => parseFloat(v.price)) || [])
+            .filter(p => !isNaN(p));
+    };
 
     handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         const newValue = type === 'checkbox' ? checked : value;
-
         this.setState({ [name]: newValue }, () => {
             this.props.onFilterChange(this.state);
         });
     };
 
-    handleBrandCheckboxChange = (brand) => {
-        const { selectedBrands } = this.state;
-        const updatedBrands = selectedBrands.includes(brand)
-            ? selectedBrands.filter(b => b !== brand)
-            : [...selectedBrands, brand];
-
-        this.setState({ selectedBrands: updatedBrands }, () => {
+    toggleMultiSelect = (field, value) => {
+        const current = this.state[field] || [];
+        const updated = current.includes(value)
+            ? current.filter(v => v !== value)
+            : [...current, value];
+        this.setState({ [field]: updated }, () => {
             this.props.onFilterChange(this.state);
         });
     };
 
-    handleMinPriceChange = (e) => {
-        const value = parseInt(e.target.value);
-        this.setState({ minPrice: value }, () => {
-            this.props.onFilterChange(this.state);
-        });
-    };
+    handlePriceChange = (value, index) => {
+        let newRange = [...this.state.priceRange];
+        newRange[index] = parseInt(value);
 
-    handleMaxPriceChange = (e) => {
-        const value = parseInt(e.target.value);
-        const max = Math.max(...this.props.product.map(p => parseFloat(p.price)));
-        const snapped = value >= max - 10 ? max : value;
+        if (newRange[0] > newRange[1]) {
+            newRange = index === 0 ? [newRange[1], newRange[1]] : [newRange[0], newRange[0]];
+        }
 
-        this.setState({ maxPrice: snapped }, () => {
+        this.setState({ priceRange: newRange }, () => {
             this.props.onFilterChange(this.state);
         });
     };
 
     handleReset = () => {
-        const { product } = this.props;
-        const prices = product && product.length > 0
-            ? product.map(p => parseFloat(p.price)).filter(p => !isNaN(p))
-            : [0];
+        const prices = this.getAllPrices(this.props.product);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
 
         const resetState = {
             selectedCategory: '',
             selectedBrands: [],
-            minPrice: Math.min(...prices),
-            maxPrice: Math.max(...prices),
+            selectedColors: [],
+            selectedRams: [],
+            selectedRoms: [],
+            selectedSizes: [],
             inStockOnly: false,
-            searchTerm: ''
+            priceRange: [min, max],
+            minPrice: min,
+            maxPrice: max
         };
+
         this.setState(resetState, () => {
             this.props.onFilterChange(resetState);
         });
     };
 
+    renderCheckboxGroup(label, field, options) {
+        return (
+            <div className="filter-group">
+                <h6>{label}</h6>
+                <div className="checkbox-group">
+                    {options.map((opt, idx) => (
+                        <label key={idx} className="filter-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={this.state[field].includes(opt)}
+                                onChange={() => this.toggleMultiSelect(field, opt)}
+                            />
+                            <span className="checkmark"></span>
+                            {opt}
+                        </label>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     render() {
         const { categories, product } = this.props;
-        const prices = (product || [])
-            .map(p => parseFloat(p.price))
-            .filter(p => !isNaN(p));
+        const {
+            selectedCategory, inStockOnly, priceRange, minPrice, maxPrice
+        } = this.state;
 
-        const brands = [...new Set((product || []).map(p => p.brand))].filter(Boolean);
-
-        const overallMinPrice = prices.length ? Math.min(...prices) : 0;
-        const overallMaxPrice = prices.length ? Math.max(...prices) : 1000;
-
-        const { minPrice, maxPrice, selectedBrands } = this.state;
+        const brands = [...new Set(product?.map(p => p.brand))];
+        const colors = [...new Set(product?.flatMap(p => p.variants?.map(v => v.color)).filter(Boolean))];
+        const rams = [...new Set(product?.flatMap(p => p.variants?.map(v => v.ram)).filter(Boolean))];
+        const roms = [...new Set(product?.flatMap(p => p.variants?.map(v => v.rom)).filter(Boolean))];
+        const sizes = [...new Set(product?.flatMap(p =>
+            p.variants?.flatMap(v => v.sizeStock?.map(s => s.size) || [])
+        ).filter(Boolean))];
 
         return (
-            <Form>
-                {/* Category Filter */}
-                <FormGroup>
-                    <Label htmlFor="selectedCategory">Category</Label>
-                    <Input
-                        type="select"
+            <div className="product-filters p-3">
+                <h5 className="mb-3">Filters</h5>
+
+                {/* Category */}
+                <div className="filter-group mb-3">
+                    <h6>Category</h6>
+                    <select
                         name="selectedCategory"
-                        id="selectedCategory"
-                        value={this.state.selectedCategory}
+                        className="form-select"
+                        value={selectedCategory}
                         onChange={this.handleChange}
                     >
-                        <option value="">All Categories</option>
+                        <option value="">All</option>
                         {categories.map((cat, idx) => (
                             <option key={idx} value={cat}>{cat}</option>
                         ))}
-                    </Input>
-                </FormGroup>
+                    </select>
+                </div>
+                {/* Price Range */}
+                <div className="filter-group mb-4">
+                    <h6>Price Range</h6>
+                    <div className="price-range-values d-flex justify-content-between mb-1">
+                        <span>₹{priceRange[0]}</span>
+                        <span>₹{priceRange[1]}</span>
+                    </div>
+                    <div className="price-slider-container">
+                        <input
+                            type="range"
+                            min={minPrice}
+                            max={maxPrice}
+                            value={priceRange[0]}
+                            onChange={(e) => this.handlePriceChange(e.target.value, 0)}
+                        />
+                        <input
+                            type="range"
+                            min={minPrice}
+                            max={maxPrice}
+                            value={priceRange[1]}
+                            onChange={(e) => this.handlePriceChange(e.target.value, 1)}
+                        />
+                    </div>
+                </div>
 
-                {/* Brand Checkboxes */}
-                <FormGroup>
-                    <Label>Brands</Label>
-                    {brands.map((brand, idx) => (
-                        <FormGroup check key={idx}>
-                            <Label check>
-                                <Input
-                                    type="checkbox"
-                                    checked={selectedBrands.includes(brand)}
-                                    onChange={() => this.handleBrandCheckboxChange(brand)}
-                                />
-                                {brand}
-                            </Label>
-                        </FormGroup>
-                    ))}
-                </FormGroup>
+                {this.renderCheckboxGroup('Brands', 'selectedBrands', brands)}
+                {this.renderCheckboxGroup('Colors', 'selectedColors', colors)}
+                {this.renderCheckboxGroup('RAM', 'selectedRams', rams)}
+                {this.renderCheckboxGroup('ROM', 'selectedRoms', roms)}
+                {this.renderCheckboxGroup('Sizes', 'selectedSizes', sizes)}
 
-                {/* Price Range Filter */}
-                <FormGroup>
-                    <Label>Price Range: ₹{minPrice} - ₹{maxPrice}</Label>
-                    <Row>
-                        <Col xs="6">
-                            <Input
-                                type="range"
-                                min={overallMinPrice}
-                                max={overallMaxPrice}
-                                step="1"
-                                value={minPrice}
-                                onChange={this.handleMinPriceChange}
-                            />
-                            <small className="text-muted">Min: ₹{minPrice}</small>
-                        </Col>
-                        <Col xs="6">
-                            <Input
-                                type="range"
-                                min={overallMinPrice}
-                                max={overallMaxPrice}
-                                step="1"
-                                value={maxPrice}
-                                onChange={this.handleMaxPriceChange}
-                            />
-                            <small className="text-muted">Max: ₹{maxPrice}</small>
-                        </Col>
-                    </Row>
-                </FormGroup>
+                <div className="filter-group mt-3 mb-3">
+                    <label className="filter-checkbox">
+                        <input
+                            type="checkbox"
+                            name="inStockOnly"
+                            checked={inStockOnly}
+                            onChange={this.handleChange}
+                        />
+                        <span className="checkmark"></span>
+                        In Stock Only
+                    </label>
+                </div>
 
-                {/* In Stock Filter */}
-                <FormGroup check className="mb-3">
-                    <Input
-                        type="checkbox"
-                        name="inStockOnly"
-                        id="inStockOnly"
-                        checked={this.state.inStockOnly}
-                        onChange={this.handleChange}
-                    />
-                    <Label htmlFor="inStockOnly" check>In Stock Only</Label>
-                </FormGroup>
-
-                {/* Reset Button */}
-                <Button color="secondary" onClick={this.handleReset} block>
+                <Button color="secondary" block onClick={this.handleReset}>
                     Reset Filters
                 </Button>
-            </Form>
+            </div>
         );
     }
 }

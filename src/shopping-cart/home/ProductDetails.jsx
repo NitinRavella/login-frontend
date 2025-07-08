@@ -1,23 +1,26 @@
-// ProductDetailsComponent.js
 import React from 'react';
 import {
-    Container, Row, Col, Button, Spinner, Toast, ToastBody, ToastHeader
+    Container, Row, Col, Button, Toast, ToastBody, ToastHeader, Modal, ModalBody
 } from 'reactstrap';
-import { FaRegHeart, FaHeart, FaShoppingCart } from 'react-icons/fa';
+import { FaRegHeart, FaHeart } from 'react-icons/fa';
 import api from '../utils/Api';
+import { RiFullscreenFill } from "react-icons/ri";
 import withRouter from '../components/WithRoute';
-import { addToCart, toggleLike } from '../../redux/actions/productActions';
+import { addToCart, toggleLike, fetchLikedProducts } from '../../redux/actions/productActions';
 import { connect } from 'react-redux';
 import '../../styles/ProductDetails.css';
 import ReviewForm from '../components/RatingComponent';
 import ProductCard from '../components/ProductCard';
+import { error, success } from '../utils/toastUtils';
 
 class ProductDetailsComponent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             product: null,
-            selectedImage: null,
+            selectedImage: '',
+            selectedRam: '',
+            selectedRom: '',
             toastVisible: false,
             toastMessage: '',
             toastColor: 'success',
@@ -27,47 +30,134 @@ class ProductDetailsComponent extends React.Component {
             liked: false,
             selectedVariantIndex: 0,
             selectedSize: '',
+            routeSelection: null,
+            zoomVisible: false,
+            showMobileZoom: false,
+            zoomX: 0,
+            zoomY: 0,
         };
     }
 
     componentDidMount() {
         this.fetchProduct();
-        // window.scrollTo(0, 0); // Scroll to top on initial load
-    }
+        const userId = sessionStorage.getItem('userId');
+        if (userId) {
+            this.props.fetchLikedProducts(); // ensure likedProducts are in Redux
+        }
+        const { state } = this.props.location || {};
+        const {
+            preselectedColor, // from Home
+            selectedColor, selectedSize, selectedRam, selectedRom // from Cart
+        } = state || {};
 
+        this.setState({ preselectedColor: preselectedColor || null });
+
+        // Delay setting selected variant until after product is fetched
+        this.setState({ routeSelection: { selectedColor, selectedSize, selectedRam, selectedRom } });
+    }
     componentDidUpdate(prevProps) {
         if (prevProps.params.id !== this.props.params.id) {
-            this.fetchProduct(); // Fetch new product on variant switch
-            // window.scrollTo(0, 0);
+            const { state } = this.props.location || {};
+            const {
+                preselectedColor,
+                selectedColor,
+                selectedSize,
+                selectedRam,
+                selectedRom
+            } = state || {};
+
+            this.setState({
+                preselectedColor: preselectedColor || null,
+                routeSelection: { selectedColor, selectedSize, selectedRam, selectedRom }
+            }, () => {
+                this.fetchProduct();
+            });
+        }
+
+        // Apply variant from route state after product is fetched
+        if (!prevProps.product && this.state.product && this.state.routeSelection) {
+            const { product, routeSelection } = this.state;
+            const { selectedColor, selectedSize, selectedRam, selectedRom } = routeSelection;
+
+            const matchedVariant = product.variants.find(v =>
+                (!selectedColor || v.color === selectedColor) &&
+                (!selectedRam || v.ram === selectedRam) &&
+                (!selectedRom || v.rom === selectedRom)
+            );
+
+            if (matchedVariant) {
+                this.setState({
+                    selectedColor: matchedVariant.color,
+                    selectedRam: matchedVariant.ram || '',
+                    selectedRom: matchedVariant.rom || '',
+                    selectedSize: selectedSize || '',
+                    selectedVariantIndex: product.variants.indexOf(matchedVariant),
+                    selectedImage: matchedVariant.thumbnails?.[0] || '',
+                    routeSelection: null
+                });
+            }
         }
     }
 
     fetchProduct = async () => {
         const { id: productId } = this.props.params;
-        const userId = sessionStorage.getItem('userId');
-
         try {
             const productRes = await api.get(`/products/${productId}`);
-            let liked = false;
+            const product = productRes.data;
 
-            if (userId) {
-                const userRes = await api.get(`/${userId}/liked-products`);
-                const likedProductIds = userRes.data?.likedProductsIds || [];
-                liked = likedProductIds.includes(productId.toString());
+            let selectedVariantIndex = 0;
+            let selectedColor = product.variants?.[0]?.color || '';
+            let selectedRam = '';
+            let selectedRom = '';
+            let selectedSize = '';
+            let selectedImage = '';
+
+            const { preselectedColor, routeSelection } = this.state;
+
+            if (preselectedColor) {
+                const matchIndex = product.variants.findIndex(v => v.color === preselectedColor);
+                if (matchIndex !== -1) {
+                    selectedVariantIndex = matchIndex;
+                    selectedColor = preselectedColor;
+                    selectedImage = product.variants[matchIndex]?.images?.[0];
+                }
             }
 
-            const product = productRes.data;
+            if (routeSelection?.selectedColor || routeSelection?.selectedRam || routeSelection?.selectedRom) {
+                const matchVariant = product.variants.find(v =>
+                    (!routeSelection.selectedColor || v.color === routeSelection.selectedColor) &&
+                    (!routeSelection.selectedRam || v.ram === routeSelection.selectedRam) &&
+                    (!routeSelection.selectedRom || v.rom === routeSelection.selectedRom)
+                );
+
+                if (matchVariant) {
+                    selectedVariantIndex = product.variants.indexOf(matchVariant);
+                    selectedColor = matchVariant.color;
+                    selectedRam = matchVariant.ram || '';
+                    selectedRom = matchVariant.rom || '';
+                    selectedSize = routeSelection.selectedSize || '';
+                    selectedImage = matchVariant.images?.[0] || '';
+                }
+            }
+
+            if (!selectedImage) {
+                selectedImage = product.variants?.[selectedVariantIndex]?.images?.[0] ||
+                    product.mainImages?.[0]?.url || '';
+            }
 
             this.setState({
                 product,
-                liked,
-                selectedImage: product.productImages?.[0] || '',
-                selectedVariantIndex: 0,
-                selectedSize: '',
+                selectedVariantIndex,
+                selectedColor,
+                selectedRam,
+                selectedRom,
+                selectedSize,
+                selectedImage,
+                routeSelection: null
             });
         } catch (error) {
             console.error("Failed to fetch product:", error);
-            this.showToast('Failed to fetch product', 'danger');
+            error('Failed to fetch product')
         }
     };
 
@@ -76,64 +166,109 @@ class ProductDetailsComponent extends React.Component {
         return [...Array(maxStars)].map((_, i) => (i < rating ? '★' : '☆')).join('');
     };
 
-    showToast = (message, color = 'success', duration = 1500) => {
-        this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
-        setTimeout(() => {
-            this.setState({ toastVisible: false });
-        }, duration);
-    };
-
     handleLikeToggle = () => {
-        const { product, liked } = this.state;
+        const { product, selectedColor, selectedRam, selectedRom, selectedSize } = this.state;
+        const isElectronics = ['phone', 'laptop', 'tablet'].includes(product.category);
+
+        const selectedVariant = product.variants.find((v) => {
+            if (isElectronics) {
+                return v.color === selectedColor && v.ram === selectedRam && v.rom === selectedRom;
+            } else {
+                return v.color === selectedColor && v.sizeStock?.some(s => s.size === selectedSize);
+            }
+        });
+
+        if (!selectedVariant) {
+            error('Please select the variant ')
+            return;
+        }
+
+        const isCurrentlyLiked = this.props.likedProducts.some(
+            item => item.productId === product._id && item.variantId === selectedVariant.variantId
+        );
+
         this.setState({ liking: true });
-        this.props.toggleLike(product._id, liked)
+
+        this.props.toggleLike(product._id, selectedVariant.variantId, isCurrentlyLiked)
             .then((newLikedStatus) => {
-                this.setState({ liked: newLikedStatus });
-                this.showToast(newLikedStatus ? "Product liked" : "Product unliked");
+                this.props.fetchLikedProducts();
+                success(newLikedStatus ? "Product liked" : "Product unliked");
             })
             .catch((err) => {
-                this.showToast(err.message, 'danger');
+                error(err.message || "Something went wrong");
             })
             .finally(() => {
                 this.setState({ liking: false });
             });
     };
 
-    handleAddToCart = () => {
-        const { product, selectedSize } = this.state;
-        console.log('Adding to cart:', product, selectedSize);
-        this.setState({ cartAnimating: true, addedToCart: true });
-        const productWithSize = { ...product, selectedSize };
-        this.props.addToCart(productWithSize)
-            .then(() => this.showToast('Added to cart!'))
-            .catch((err) => {
-                console.error('Cart Error:', err);
-                this.showToast(err.message, 'danger');
-                this.setState({ cartAnimating: false, addedToCart: false });
-            })
-            .finally(() => {
-                setTimeout(() => this.setState({ cartAnimating: false, addedToCart: false }), 1000);
-            });
+
+
+    getSelectedSizeStock = () => {
+        const { selectedSize, product, selectedVariantIndex } = this.state;
+
+        if (!selectedSize || !product?.variants?.[selectedVariantIndex]) return 0;
+
+        const sizeStock = product.variants[selectedVariantIndex].sizeStock || [];
+        const foundSize = sizeStock.find(s => s.size === selectedSize);
+
+        return foundSize?.stock ?? 0;
+    };
+
+    handleMouseMove = (e) => {
+        const { offsetX, offsetY, target } = e.nativeEvent;
+        const { offsetWidth, offsetHeight } = target;
+
+        const xPercent = (offsetX / offsetWidth) * 100;
+        const yPercent = (offsetY / offsetHeight) * 100;
+
+        this.setState({
+            zoomX: xPercent,
+            zoomY: yPercent
+        });
     };
 
     render() {
-        const {
-            product, toastVisible, toastMessage, toastColor,
-            liked, liking, selectedImage, selectedSize
-        } = this.state;
-        const allSizes = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-        const availableSizes = product?.sizes || [];
+        const { product } = this.state;
+        if (!product) return (
+            <Container className="mt-5">
+                <h4>Product not found.</h4>
+            </Container>
+        );
 
-        if (!product) return <Container className="mt-5"><h4>Product not found.</h4></Container>;
-        console.log('selectedSize', selectedSize, product?.sizes, product?.rom, product?.ram, product?.colors, product?.sizes);
+        const {
+            toastVisible, toastMessage, toastColor, selectedImage,
+            selectedSize, selectedVariantIndex, liking, selectedRam, selectedRom
+        } = this.state;
+
+        const { likedProducts } = this.props;
+
+        const selectedVariant = product.variants?.[selectedVariantIndex] || {};
+        const allSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+        const availableSizes = selectedVariant.sizeStock?.map(s => s.size) || [];
+        const selectedColor = product.variants?.[selectedVariantIndex]?.color;
+
+        const isLiked = likedProducts.some(
+            item => item.productId === product._id && item.variantId === selectedVariant.variantId
+        );
+
+        const selectedExactVariant = product.variants.find(v =>
+            v.color === selectedColor && v.ram === selectedRam && v.rom === selectedRom
+        );
+
+        const getFirstImage = (variant) =>
+            variant?.images?.[0] ||
+            variant?.thumbnails?.[0] ||
+            product?.mainImages?.[0]?.url ||
+            '';
         return (
             <Container className="mt-5 product-details-container">
                 <Row>
-                    {/* Left Image Section */}
+                    {/* Image Section */}
                     <Col md="6">
                         <Row className="flex-md-row flex-column-reverse align-items-center">
                             <Col md="3" className="d-flex flex-md-column flex-row flex-wrap justify-content-center align-items-center">
-                                {(product.productImages || []).map((img, idx) => (
+                                {(selectedVariant.images || selectedVariant.thumbnails || []).map((img, idx) => (
                                     <img
                                         key={idx}
                                         src={img}
@@ -143,115 +278,223 @@ class ProductDetailsComponent extends React.Component {
                                     />
                                 ))}
                             </Col>
-                            <Col md="9" className="text-center mb-3">
-                                <img src={selectedImage} alt="Main" className="main-product-image" />
+                            <Col md="6" className="position-relative">
+                                <img
+                                    src={selectedImage || getFirstImage(selectedVariant)}
+                                    alt="Main"
+                                    className="main-product-image"
+                                    onMouseEnter={() => this.setState({ zoomVisible: true })}
+                                    onMouseLeave={() => this.setState({ zoomVisible: false })}
+                                    onMouseMove={this.handleMouseMove}
+                                />
+                                {window.innerWidth < 768 && (
+                                    <button
+                                        className="zoom-button-mobile mt-2 text-end border-0"
+                                        onClick={() => this.setState({ showMobileZoom: true })}
+                                    >
+                                        <RiFullscreenFill size={25} />
+                                    </button>
+                                )}
                             </Col>
                         </Row>
                     </Col>
 
-                    {/* Right Detail Section */}
-                    <Col md="6">
-                        <h2>{product.name}</h2>
-                        <p className="text-muted">{product.category}</p>
+                    {/* Product Details Section */}
+                    <Col md="6" className="product-details-col">
+                        {this.state.zoomVisible && window.innerWidth >= 768 && (
+                            <div
+                                className="zoom-box"
+                                style={{
+                                    backgroundImage: `url(${selectedImage || getFirstImage(selectedVariant)})`,
+                                    backgroundPosition: `${this.state.zoomX}% ${this.state.zoomY}%`
+                                }}
+                            />
+                        )}
+                        <h2>{product.name}
+                            {selectedVariant?.color && ` - (${selectedVariant.color})`}
+                            {selectedVariant?.ram && ` | ${selectedVariant.ram} RAM`}
+                            {selectedVariant?.rom && ` | ${selectedVariant.rom} ROM`}
+                        </h2>
+                        <p className="text-muted">{selectedVariant.color || product.category}</p>
 
-                        {product.offerPrice ? (
+                        {selectedVariant?.offerPrice && selectedVariant?.price ? (
                             <div className="price-container">
-                                <p className="text-success fw-semibold me-2">₹{product.offerPrice}</p>
-                                <p className="discount-price">({Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF)</p>
-                                <p className="original-price">₹{product.price}</p>
+                                <p className="text-success fw-semibold me-2">₹{selectedVariant.offerPrice}</p>
+                                <p className="discount-price">
+                                    ({Math.round(((selectedVariant.price - selectedVariant.offerPrice) / selectedVariant.price) * 100)}% OFF)
+                                </p>
+                                <p className="original-price">₹{selectedVariant.price}</p>
                             </div>
+                        ) : selectedVariant?.price ? (
+                            <p className="text-success fw-semibold">₹{selectedVariant.price}</p>
                         ) : (
-                            <p className="text-success fw-semibold">₹{product.price}</p>
+                            <p className="text-muted">Price not available</p>
                         )}
 
                         <p className="product-description">{product.description}</p>
-                        <p><strong>Stock:</strong> {product.stock}</p>
 
-                        {/* Specs & Variants */}
-                        {(product.ram?.length || product.rom || product.colors?.length || product.sizes?.length) && (
-                            <div className="product-specs-section mt-4">
-                                <h5>Available Variants</h5>
-                                <div className="specs-table mt-3">
-                                    {product.ram && <div className="spec-row"><strong>RAM:</strong><span>{product.ram}</span></div>}
-                                    {product.rom && <div className="spec-row"><strong>ROM:</strong><span>{product.rom}</span></div>}
-                                    {product.processor && <div className="spec-row"><strong>Processor:</strong><span>{product.processor}</span></div>}
-
-                                    {product.variants?.length > 0 && (
-                                        <div className="product-variants mt-4">
-                                            <div className="d-flex gap-3 flex-wrap mt-2">
-                                                {product.variants.map((variant) => (
-                                                    <div
-                                                        key={variant._id}
-                                                        className="variant-box text-center"
-                                                        style={{ cursor: 'pointer', width: 70 }}
-                                                        onClick={() => this.props.navigate(`/product/${variant._id}`)}
-                                                    >
-                                                        <img
-                                                            src={variant.thumbnails?.[0]}
-                                                            alt={variant.color}
-                                                            title={variant.color}
-                                                            style={{
-                                                                width: '100%',
-                                                                height: 70,
-                                                                objectFit: 'cover',
-                                                                borderRadius: 6,
-                                                                border: variant._id === product._id ? '2px solid #007bff' : '1px solid #ccc',
-                                                            }}
-                                                        />
-                                                        <div className="small mt-1">{variant.color}</div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                        {product.variants?.length > 0 && (
+                            <div className="mt-4">
+                                <h5>Choose Variant</h5>
+                                <div className="d-flex gap-3 flex-wrap mt-2">
+                                    {[...new Map(product.variants.map(v => [v.color, v])).values()].map((variant, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="variant-box text-center"
+                                            style={{ cursor: 'pointer', width: 70 }}
+                                            onClick={() => {
+                                                this.setState({
+                                                    selectedColor: variant.color,
+                                                    selectedRam: variant.ram || '',
+                                                    selectedRom: variant.rom || '',
+                                                    selectedImage: getFirstImage(variant),
+                                                    selectedVariantIndex: product.variants.indexOf(variant),
+                                                    selectedSize: ''
+                                                });
+                                            }}
+                                        >
+                                            <img
+                                                src={getFirstImage(variant)}
+                                                alt={variant.color}
+                                                title={variant.color}
+                                                style={{
+                                                    width: '100%',
+                                                    height: 70,
+                                                    objectFit: 'cover',
+                                                    borderRadius: 6,
+                                                    border: selectedColor === variant.color ? '2px solid #007bff' : '1px solid #ccc',
+                                                }}
+                                            />
+                                            <div className="small mt-1">{variant.color}</div>
                                         </div>
-                                    )}
-                                    {availableSizes.length > 0 &&
-                                        <div className="spec-row mt-3">
-                                            <strong>Available Sizes:</strong>
-                                            <div className="sizes-list d-flex gap-2 flex-wrap mt-2">
-                                                {allSizes.map((size, index) => {
-                                                    const isAvailable = availableSizes.includes(size);
-                                                    const isSelected = selectedSize === size;
-
-                                                    return (
-                                                        <button
-                                                            key={index}
-                                                            type="button"
-                                                            className={`size-button ${isSelected ? 'selected' : ''}`}
-                                                            disabled={!isAvailable}
-                                                            onClick={() => isAvailable && this.setState({ selectedSize: size })}
-                                                            title={!isAvailable ? 'Out of stock' : ''}
-
-                                                        >
-                                                            {size}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    }
+                                    ))}
                                 </div>
                             </div>
                         )}
 
-                        {product.stock > 0 && (
-                            <Row className="mt-4 align-items-center">
-                                <Col xs="6" md='4'>
-                                    <ProductCard product={product} selectedSize={selectedSize} />
+                        {/* Electronics (RAM/ROM) */}
+                        {['phone', 'laptop', 'tablet', 'smartwatch'].includes(product.category) && (
+                            <Row>
+                                <Col>
+                                    {selectedColor && (
+                                        <>
+                                            <strong>Select RAM:</strong>
+                                            <div className="d-flex gap-2 flex-wrap mt-2">
+                                                {[...new Set(product.variants.filter(v => v.color === selectedColor).map(v => v.ram))].map((ram, i) => (
+                                                    <button
+                                                        key={i}
+                                                        className={`size-button ${selectedRam === ram ? 'selected' : ''}`}
+                                                        onClick={() => {
+                                                            const firstRom = product.variants.find(v => v.color === selectedColor && v.ram === ram)?.rom || '';
+                                                            const variant = product.variants.find(v => v.color === selectedColor && v.ram === ram && v.rom === firstRom);
+                                                            this.setState({
+                                                                selectedRam: ram,
+                                                                selectedRom: firstRom,
+                                                                selectedVariantIndex: product.variants.indexOf(variant),
+                                                                selectedImage: getFirstImage(variant)
+                                                            });
+                                                        }}
+                                                    >
+                                                        {ram}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </Col>
-                                <Col xs='1' md='1'>
-                                    <Button color="link" onClick={this.handleLikeToggle} disabled={liking} className="p-0">
-                                        {liked ? <FaHeart size={32} color="red" /> : <FaRegHeart size={32} color="grey" />}
-                                    </Button>
+
+                                <Col>
+                                    {selectedColor && selectedRam && (
+                                        <>
+                                            <strong>Select ROM:</strong>
+                                            <div className="d-flex gap-2 flex-wrap mt-2">
+                                                {[...new Set(product.variants.filter(v => v.color === selectedColor && v.ram === selectedRam).map(v => v.rom))].map((rom, i) => {
+                                                    const variantExists = product.variants.find(v => v.color === selectedColor && v.ram === selectedRam && v.rom === rom);
+                                                    return (
+                                                        <button
+                                                            key={i}
+                                                            className={`size-button ${selectedRom === rom ? 'selected' : ''}`}
+                                                            onClick={() => {
+                                                                const variant = product.variants.find(v => v.color === selectedColor && v.ram === selectedRam && v.rom === rom);
+                                                                this.setState({
+                                                                    selectedRom: rom,
+                                                                    selectedVariantIndex: product.variants.indexOf(variant),
+                                                                    selectedImage: getFirstImage(variant)
+                                                                });
+                                                            }}
+                                                            disabled={!variantExists}
+                                                            style={{ opacity: variantExists ? 1 : 0.5 }}
+                                                        >
+                                                            {rom}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    )}
                                 </Col>
                             </Row>
                         )}
 
+                        {/* Fashion Sizes */}
+                        {['clothing', 'shoes'].includes(product.category) && availableSizes.length > 0 && (
+                            <div className="spec-row mt-3">
+                                <strong>Available Sizes:</strong>
+                                <div className="sizes-list d-flex gap-2 flex-wrap mt-2">
+                                    {allSizes.map((size, index) => {
+                                        const isAvailable = availableSizes.includes(size);
+                                        const isSelected = selectedSize === size;
+
+                                        return (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                className={`size-button ${isSelected ? 'selected' : ''}`}
+                                                disabled={!isAvailable}
+                                                onClick={() => isAvailable && this.setState({ selectedSize: size })}
+                                                title={!isAvailable ? 'Out of stock' : ''}
+                                            >
+                                                {size}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {selectedSize && (
+                                    <div className="mt-2">
+                                        <p className="text-muted mb-0">
+                                            Stock for <strong>{selectedSize}</strong>: <strong>{this.getSelectedSizeStock()}</strong>
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <Row className="mt-4 align-items-center">
+                            <Col xs="6" md="4">
+                                <ProductCard
+                                    product={product}
+                                    variant={selectedExactVariant || selectedVariant}
+                                    selectedSize={selectedSize}
+                                    selectedColor={selectedVariant.color}
+                                    selectedRam={selectedRam}
+                                    selectedRom={selectedRom}
+                                    stock={selectedExactVariant?.stock || 0}
+                                />
+                            </Col>
+                            <Col xs="1" md="1">
+                                <Button color="link" onClick={this.handleLikeToggle} disabled={liking} className="p-0">
+                                    {isLiked ? (
+                                        <FaHeart size={32} color="red" />
+                                    ) : (
+                                        <FaRegHeart size={32} color="grey" />
+                                    )}
+                                </Button>
+                            </Col>
+                        </Row>
                         <div className="my-3">
                             <h5>Average Rating: {product.averageRating.toFixed(1)} / 5</h5>
                             <div className="rating-stars">{this.renderStars(Math.round(product.averageRating))}</div>
                         </div>
-
-                        {/* Ratings */}
                         <div className="mt-4">
                             <h5>User Ratings:</h5>
                             {product.ratings.length === 0 ? <p>No ratings yet.</p> :
@@ -259,8 +502,9 @@ class ProductDetailsComponent extends React.Component {
                                     <div key={idx} className="rating-box">
                                         <Row className="align-items-center">
                                             <Col xs="5" className="d-flex align-items-center gap-3">
-                                                {r.avatar ? <img src={r.avatar} alt={r.userName} className="user-avatar" /> :
-                                                    <div className="default-avatar">{r.userName?.charAt(0)}</div>}
+                                                {r.avatar
+                                                    ? <img src={r.avatar} alt={r.userName} className="user-avatar" />
+                                                    : <div className="default-avatar">{r.userName?.charAt(0)}</div>}
                                                 <strong className="text-dark">{r.userName}</strong>
                                             </Col>
                                             <Col xs="7" className="text-end">
@@ -272,12 +516,7 @@ class ProductDetailsComponent extends React.Component {
                                         {r.ratedImages?.length > 0 && (
                                             <div className="d-flex flex-wrap gap-2 mt-2">
                                                 {r.ratedImages.map((imgUrl, imgIdx) => (
-                                                    <img
-                                                        key={imgIdx}
-                                                        src={imgUrl}
-                                                        alt={`Rating ${imgIdx + 1}`}
-                                                        className="rating-image-thumbnail"
-                                                    />
+                                                    <img key={imgIdx} src={imgUrl} alt={`Rating ${imgIdx + 1}`} className="rating-image-thumbnail" />
                                                 ))}
                                             </div>
                                         )}
@@ -285,11 +524,24 @@ class ProductDetailsComponent extends React.Component {
                                 ))
                             }
                         </div>
-
                         <ReviewForm />
                     </Col>
+                    {/* Mobile Fullscreen Modal */}
+                    <Modal
+                        isOpen={this.state.showMobileZoom}
+                        toggle={() => this.setState({ showMobileZoom: false })}
+                        className="fullscreen-modal"
+                    >
+                        <ModalBody className="p-0">
+                            <div
+                                className="mobile-zoom-container"
+                                onClick={() => this.setState({ showMobileZoom: false })}
+                            >
+                                <img src={selectedImage} alt="Zoomed" className="mobile-zoom-image" />
+                            </div>
+                        </ModalBody>
+                    </Modal>
                 </Row>
-
                 <div className="custom-toast">
                     <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
                         <ToastHeader toggle={() => this.setState({ toastVisible: false })}>
@@ -303,11 +555,16 @@ class ProductDetailsComponent extends React.Component {
     }
 }
 
+
 const mapStateToProps = (state) => ({
-    cart: state.product?.cart || [],
-    liked: state.product?.liked || {}
+    cart: state.products?.cart || [],
+    likedProducts: state.products?.likedProducts || [],
+    loading: state.products?.loadingCart || false,
 });
 
-const mapDispatchToProps = { addToCart, toggleLike };
-
+const mapDispatchToProps = {
+    addToCart,
+    toggleLike,
+    fetchLikedProducts,
+};
 export default connect(mapStateToProps, mapDispatchToProps)(withRouter(ProductDetailsComponent));

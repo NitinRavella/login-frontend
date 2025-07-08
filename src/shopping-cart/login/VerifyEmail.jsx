@@ -26,7 +26,6 @@ class VerifyEmail extends Component {
     handleSubmit = async (e) => {
         e.preventDefault();
         const { code, email } = this.state;
-        console.log('Verifying email:', email);
 
         try {
             await api.post('/verify-email', { email, code });
