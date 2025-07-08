@@ -1,24 +1,26 @@
-.cart-img-container {
+.cart-card {
+    background-color: #fff;
+    transition: box-shadow 0.2s ease !important;
+}
+
+.cart-card:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+.cart-image-wrapper {
     width: 100%;
-    height: 200px;
-    /* Fixed height for all cards */
-    overflow: hidden;
-    border-top-left-radius: 0.75rem;
-    border-top-right-radius: 0.75rem;
-    background-color: #f8f8f8;
+    height: 180px;
+    background-color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #eee;
 }
 
-.cart-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-.cart-img:hover {
-    transform: scale(1.05);
-    /* Optional: adds a slight hover effect */
+.cart-product-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }

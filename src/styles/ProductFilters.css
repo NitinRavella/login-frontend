@@ -1,0 +1,99 @@
+.product-filters {
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 12px;
+    font-size: 0.95rem;
+}
+
+.filter-group h6 {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-checkbox {
+    position: relative;
+    padding-left: 24px;
+    cursor: pointer;
+    user-select: none;
+    display: inline-block;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.filter-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.checkmark {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    height: 16px;
+    width: 16px;
+    background-color: #eee;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.filter-checkbox input:checked~.checkmark {
+    background-color: #6c63ff;
+    border-color: #6c63ff;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.filter-checkbox input:checked~.checkmark:after {
+    display: block;
+}
+
+.filter-checkbox .checkmark:after {
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.price-slider-container {
+    position: relative;
+    height: 30px;
+}
+
+.price-slider-container input[type="range"] {
+    position: absolute;
+    width: 100%;
+    height: 30px;
+    pointer-events: none;
+    -webkit-appearance: none;
+    background: transparent;
+}
+
+.price-slider-container input[type="range"]::-webkit-slider-thumb {
+    pointer-events: all;
+    width: 16px;
+    height: 16px;
+    background: #6c63ff;
+    border: none;
+    border-radius: 50%;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.price-range-values {
+    font-size: 0.85rem;
+    font-weight: 500;
+}

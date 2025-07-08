@@ -8,10 +8,10 @@ class RatingDisplay extends Component {
         super(props);
         this.state = {
             averageRating: 0,
-            ratingCounts: {},
-            hovered: false,
-            totalRatings: 0,
-            totalReviews: 0,
+            // ratingCounts: {},
+            // hovered: false,
+            // totalRatings: 0,
+            // totalReviews: 0,
         };
     }
 
@@ -24,17 +24,17 @@ class RatingDisplay extends Component {
             const res = await api.get(`/products/${this.props.productId}/ratings-summary`);
             const data = res.data;
             this.setState({
-                ratingCounts: data.ratings,
+                // ratingCounts: data.ratings,
                 averageRating: data.averageRating,
-                totalRatings: data.totalRatings || Object.values(data.ratings).reduce((a, b) => a + b, 0),
-                totalReviews: data.totalReviews || 0,
+                // totalRatings: data.totalRatings || Object.values(data.ratings).reduce((a, b) => a + b, 0),
+                // totalReviews: data.totalReviews || 0,
             });
         } catch (err) {
             console.error('Failed to fetch ratings:', err);
         }
     };
 
-    renderStars() {
+    /*renderStars() {
         const { averageRating } = this.state;
         const stars = [];
         for (let i = 1; i <= 5; i++) {
@@ -95,7 +95,6 @@ class RatingDisplay extends Component {
             </div>
         );
     }
-
     render() {
         const { averageRating, hovered } = this.state;
 
@@ -118,6 +117,16 @@ class RatingDisplay extends Component {
                         this.renderAverageRatingBadge()
                     )}
                 </div>
+            </div>
+        );
+    }*/
+    render() {
+        const { averageRating } = this.state;
+
+        return (
+            <div className="rating-container">
+                <span>{averageRating?.toFixed(1)}</span>
+                <FaStar className="star-icon" />
             </div>
         );
     }

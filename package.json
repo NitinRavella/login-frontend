@@ -22,11 +22,13 @@
         "react-resizable": "^3.0.5",
         "react-router-dom": "^6.30.0",
         "react-scripts": "5.0.1",
+        "react-sortablejs": "^6.1.4",
         "react-toastify": "^11.0.5",
         "reactstrap": "^9.2.3",
         "redux": "^5.0.1",
         "redux-thunk": "^3.1.0",
         "sass": "^1.89.0",
+        "sortablejs": "^1.15.6",
         "web-vitals": "^2.1.4"
     },
     "scripts": {

@@ -1,4 +1,26 @@
 .rating-container {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f8f8f8;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    gap: 4px;
+    line-height: 1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    user-select: none;
+}
+
+.rating-container .star-icon {
+    color: #f5c518;
+    /* gold star like Amazon */
+    font-size: 16px;
+}
+
+/* .rating-container {
     position: relative;
     display: inline-block;
     font-family: sans-serif;
@@ -95,4 +117,4 @@
 .ratings-reviews-text {
     font-size: 14px;
     color: #555;
-}
+} */
