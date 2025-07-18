@@ -6,6 +6,7 @@ import { FaPlusCircle, FaTrash } from 'react-icons/fa';
 import { IoMdClose } from 'react-icons/io';
 import api from '../utils/Api';
 import ImagePreviewList from '../utils/ImagePreviewList';
+import { notifyError, notifySuccess } from '../utils/toastUtils';
 
 const CATEGORY_OPTIONS = [
     { value: '', label: 'Select Category' },
@@ -104,7 +105,6 @@ class ProductForm extends Component {
     }
 
     prefillForm = (data) => {
-        console.log('data', data);
 
         const isElectronics = ['phone', 'laptop', 'tablet', 'smartwatch'].includes(data.category?.toLowerCase());
         const isFashion = ['clothing', 'shoes', 'apparel'].includes(data.category?.toLowerCase());
@@ -358,15 +358,11 @@ class ProductForm extends Component {
                 formData.append('images', file);
             }
         });
-
-        // Track uploaded image files to avoid duplicates
         const uploadedFilesSet = new Set();
         const variantsData = variants.map(v => {
             const thumbnails = [];
 
             (v.thumbnails || []).forEach(file => {
-                let fileObj = null;
-
                 if (file instanceof File) {
                     if (!uploadedFilesSet.has(file.name)) {
                         formData.append('variantImages', file);
@@ -374,7 +370,6 @@ class ProductForm extends Component {
                     }
                     thumbnails.push(file.name);
                 } else if (file?.url) {
-                    // Preloaded image from server (edit mode), ignore re-upload, but preserve URL
                     thumbnails.push(file.url);
                 }
             });
@@ -411,11 +406,11 @@ class ProductForm extends Component {
                 await api.post('/products', formData, config);
             }
 
-            alert('Product submitted successfully');
+            notifySuccess('Product submitted successfully');
             if (this.props.onSuccess) this.props.onSuccess();
         } catch (error) {
             console.error('Submission failed:', error);
-            alert('Failed to submit product');
+            notifyError('Failed to submit product');
         }
     };
 
@@ -423,7 +418,7 @@ class ProductForm extends Component {
 
 
     render() {
-        const { isElectronics, name, description, brand, category, variants, mainImagePreviews, specList, customSizeInputs, errors } = this.state;
+        const { isElectronics, name, description, brand, category, variants, mainImagePreviews, specList, customSizeInputs } = this.state;
         const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
         const { isEdit, onCancel } = this.props;
         return (

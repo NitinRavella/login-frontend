@@ -5,8 +5,9 @@ import '../../styles/WishlistCard.css'; // make sure this file has the styles me
 
 const WishlistProductCard = ({ product, variant, onClick, onRemove, onMoveToBag }) => {
     const { name, category, mainImages } = product;
-    const { price, offerPrice } = variant.pricing || {};
-    const image = variant.images?.[0] || mainImages?.[0]?.url || '';
+    const price = variant?.pricing?.price ?? variant?.price ?? 0;
+    const offerPrice = variant?.pricing?.offerPrice ?? variant?.offerPrice ?? 0;
+    const image = variant.images?.[0] || mainImages?.[0]?.url || variant.thumbnails?.[0];
     const outOfStock = category === 'clothing'
         ? variant.sizeStock.every(s => s.stock <= 0)
         : variant.stock <= 0;

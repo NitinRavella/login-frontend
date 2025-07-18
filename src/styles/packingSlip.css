@@ -1,0 +1,70 @@
+/* PackingSlip.css */
+
+.packing-slip {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+.packing-slip .section {
+    margin-bottom: 1.5rem;
+}
+
+.packing-slip h2 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.packing-slip h5 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.item-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.item-table th,
+.item-table td {
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.item-table th {
+    background-color: #f8f9fa;
+}
+
+.cancelled {
+    color: #999;
+    background-color: #f8d7da;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .packing-slip,
+    .packing-slip * {
+        visibility: visible;
+    }
+
+    .packing-slip {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        box-shadow: none;
+        border: none;
+    }
+}

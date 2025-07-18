@@ -9,6 +9,9 @@ import {
     FETCH_LIKED_PRODUCTS_REQUEST,
     FETCH_LIKED_PRODUCTS_SUCCESS,
     FETCH_LIKED_PRODUCTS_FAILURE,
+    MERGE_WISHLIST_REQUEST,
+    MERGE_WISHLIST_SUCCESS,
+    MERGE_WISHLIST_FAILURE,
     CLEAR_LIKED_PRODUCTS,
     UPDATE_CART_REQUEST,
     UPDATE_CART_SUCCESS,
@@ -86,6 +89,25 @@ export default function productReducer(state = initialState, action) {
                 loadingLikes: false,
             };
         }
+        case MERGE_WISHLIST_REQUEST:
+            return {
+                ...state,
+                loadingLikes: true,
+                likesError: null,
+            };
+
+        case MERGE_WISHLIST_SUCCESS:
+            return {
+                ...state,
+                loadingLikes: false,
+            };
+
+        case MERGE_WISHLIST_FAILURE:
+            return {
+                ...state,
+                loadingLikes: false,
+                likesError: action.payload,
+            };
 
         case FETCH_LIKED_PRODUCTS_SUCCESS:
             return {

@@ -4,7 +4,7 @@ import Picker from 'emoji-picker-react';
 import { Button, Form, FormGroup, Label, Input, Spinner } from 'reactstrap';
 import withRouter from './WithRoute';
 import api from '../utils/Api';
-import { toast } from 'react-toastify';
+import { notifyError, notifySuccess } from '../utils/toastUtils';
 
 class ReviewForm extends Component {
     state = {
@@ -57,12 +57,12 @@ class ReviewForm extends Component {
         const { id } = this.props.params;
 
         if (!userId) {
-            toast.error("You must be logged in to leave a review.");
+            notifyError("You must be logged in to leave a review.");
             return;
         }
 
         if (!rating || rating < 1 || rating > 5) {
-            toast.error("Please provide a rating between 1 and 5.");
+            notifyError("Please provide a rating between 1 and 5.");
             return;
         }
 
@@ -80,11 +80,11 @@ class ReviewForm extends Component {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            toast.success(response.data.message || 'Review submitted!');
+            notifySuccess(response.data.message || 'Review submitted!');
             this.setState({ rating: 0, comment: '', showEmojiPicker: false, images: [] });
         } catch (error) {
             console.error(error);
-            toast.error("Failed to submit review.");
+            notifyError("Failed to submit review.");
         } finally {
             this.setState({ isSubmitting: false });
         }

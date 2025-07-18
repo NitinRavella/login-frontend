@@ -1,12 +1,12 @@
 import React, { Component } from 'react';
 import api from '../utils/Api';
-import { Card, CardBody, CardTitle, CardText, Input, Row, Col, Button } from 'reactstrap';
+import { Card, Row, Col, Button } from 'reactstrap';
 import { FaTrashAlt } from 'react-icons/fa';
-import { toast } from 'react-toastify';
 import withRouter from '../components/WithRoute';
 import { connect } from 'react-redux';
 import { updateCartQuantity, fetchCart } from '../../redux/actions/productActions';
 import '../../styles/AddToCart.css'
+import { notifyError, notifyInfo, notifySuccess } from '../utils/toastUtils';
 
 class AddToCart extends Component {
 
@@ -22,9 +22,9 @@ class AddToCart extends Component {
         const { dispatch } = this.props;
         try {
             await dispatch(updateCartQuantity(productId, newQty, selectedSize, selectedColor, selectedRam, selectedRom));
-            toast.success('Quantity updated successfully!');
+            notifySuccess('Quantity updated successfully!');
         } catch (err) {
-            toast.error(err?.response.data?.message);
+            notifyError(err?.response.data?.message);
             console.error('Failed to update quantity:', err);
         }
     };
@@ -32,7 +32,7 @@ class AddToCart extends Component {
     handleDelete = async (item) => {
         const { dispatch } = this.props;
         const userId = sessionStorage.getItem('userId');
-        if (!userId) return toast.error('You must be logged in');
+        if (!userId) return notifyError('You must be logged in');
 
         try {
             await api.delete(`/${userId}/cart/${item.product._id}`, {
@@ -45,11 +45,11 @@ class AddToCart extends Component {
                 }
             });
 
-            toast.success('Product removed from cart!');
+            notifySuccess('Product removed from cart!');
             dispatch(fetchCart(userId));
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error(err?.response?.data?.message || 'Failed to delete product');
+            notifyError(err?.response?.data?.message || 'Failed to delete product');
         }
     };
 
@@ -95,7 +95,6 @@ class AddToCart extends Component {
                                 const maxQty = isFashion
                                     ? item.variant?.sizeStock?.find(s => s.size === item.selectedSize)?.stock || 10
                                     : item.variant?.stock || 10;
-                                console.log('item', item)
                                 return (
                                     <Card key={index} className="mb-3 border rounded-0 cart-card shadow-sm">
                                         <Row className="g-0">
@@ -161,7 +160,7 @@ class AddToCart extends Component {
                                                                     item.selectedColor
                                                                 );
                                                             } else {
-                                                                toast.info(`Only ${maxQty} in stock`);
+                                                                notifyInfo(`Only ${maxQty} in stock`);
                                                             }
                                                         }}
                                                     >+</Button>

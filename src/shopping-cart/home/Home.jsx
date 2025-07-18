@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
-import { Button, Container, Row, Col, Input, Card, CardBody, CardTitle, Spinner, CardFooter, Toast, ToastBody, ToastHeader, Offcanvas, OffcanvasHeader, OffcanvasBody } from 'reactstrap';
+import React from 'react';
+import { Button, Container, Row, Col, Card, CardBody, CardTitle, Spinner, Toast, ToastBody, ToastHeader, Offcanvas, OffcanvasHeader, OffcanvasBody } from 'reactstrap';
 import { Link } from 'react-router-dom';
 import { FaHeart, FaRegHeart, FaEdit } from 'react-icons/fa';
 import { RiDeleteBin6Line } from 'react-icons/ri';
 import { FcFilledFilter } from "react-icons/fc";
 import api from '../utils/Api';
 import ProductFilters from './ProductFilters';
-import { toast } from 'react-toastify';
 import HomeHelper from './HomeHelper';
 import { connect } from 'react-redux';
-import { addToCart, toggleLike, fetchLikedProducts, fetchCart } from '../../redux/actions/productActions';
+import { addToCart, toggleLike, fetchLikedProducts } from '../../redux/actions/productActions';
 import '../../styles/Home.css';
 import RatingDisplay from '../components/RatingSummary';
-import ProductCard from '../components/ProductCard';
+// import ProductCard from '../components/ProductCard';
 import ProductForm from './ProductForm';
 import DeletedProducts from './DeletedProducts';
+import { notifyError, notifyInfo, notifySuccess } from '../utils/toastUtils';
 
 class Home extends HomeHelper {
     constructor(props) {
@@ -33,10 +33,7 @@ class Home extends HomeHelper {
             deleteConfirmationText: '',
             showFilters: false,
             isSubmitting: false,
-            toastVisible: false,
-            toastMessage: '',
-            toastColor: 'success',
-            carouselImageMap: {},  // { [productId]: currentImageURL }
+            carouselImageMap: {},
             imageIntervals: {},
         };
     }
@@ -133,8 +130,6 @@ class Home extends HomeHelper {
         this.setState({ filteredProducts: filtered });
     };
 
-
-
     addProducts = () => {
         this.setState({ renderLayout: 1 });
     };
@@ -207,54 +202,42 @@ class Home extends HomeHelper {
     };
 
     handleLikeToggle = (product, variantId) => {
-        const userToken = sessionStorage.getItem('token');
-        if (!userToken) {
-            this.showToast('Please login to wishlist the product', 'danger');
-            return;
-        }
-
         if (!product || !product._id || !variantId) {
-            this.showToast("Invalid product or variant.", "danger");
+            notifyError("Invalid product or variant.");
             return;
         }
 
-        const { likedProducts, toggleLike } = this.props;
+        const { likedProducts, toggleLike, fetchLikedProducts } = this.props;
 
-        // Find if product with the given variantId is already liked
+        // Check if this variant of the product is already in the wishlist
         const isCurrentlyLiked = likedProducts.some(
-            (item) =>
-                item.productId === product._id && item.variantId === variantId
+            item => item.productId === product._id && item.variantId === variantId
         );
 
         toggleLike(product._id, variantId, isCurrentlyLiked)
             .then((newLikedStatus) => {
-                this.props.fetchLikedProducts();
-                this.showToast(
-                    newLikedStatus ? "Product liked" : "Product unliked",
-                    newLikedStatus ? "success" : "info"
-                );
+                fetchLikedProducts(); // refetch from backend (user) or localStorage (guest)
+
+                if (newLikedStatus) {
+                    notifySuccess("Product added to wishlist");
+                } else {
+                    notifyInfo("Product removed from wishlist");
+                }
             })
             .catch((err) => {
-                this.showToast(err.message, 'danger');
+                notifyError(err.message || "Failed to update wishlist");
             });
-    };
-
-    showToast = (message, color = 'success', duration = 1000) => {
-        this.setState({ toastVisible: true, toastMessage: message, toastColor: color });
-        setTimeout(() => {
-            this.setState({ toastVisible: false });
-        }, duration);
     };
 
     confirmDelete = async () => {
         const { productIdToDelete } = this.state;
         try {
             await api.delete(`/products/${productIdToDelete}`);
-            toast.success("Product deleted successfully!");
+            notifySuccess("Product deleted successfully!");
             this.fetchProducts();
         } catch (error) {
             console.error('Error deleting product:', error);
-            toast.error("Failed to delete product.");
+            notifyError("Failed to delete product.");
         } finally {
             this.closeDeleteModal();
         }
@@ -337,11 +320,12 @@ class Home extends HomeHelper {
             this.setState({ renderLayout: 3, deletedProducts: deletedProducts.data.products });
         } catch (err) {
             console.error(err)
+            notifyError(err.message)
         }
     }
 
     render() {
-        const { products, filteredProducts, renderLayout, loading, searchQuery, categories, toastColor, toastMessage, toastVisible, editingProduct, deletedProducts } = this.state;
+        const { products, filteredProducts, renderLayout, loading, searchQuery, categories, editingProduct, deletedProducts } = this.state;
         const { role, likedProducts } = this.props;
         if (!products) return <Container className="mt-5"><h4>Product not found.</h4></Container>;
 
@@ -559,14 +543,6 @@ class Home extends HomeHelper {
                 )}
 
                 {this.renderDeleteModal()}
-                <div className="custom-toast">
-                    <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
-                        <ToastHeader toggle={() => this.setState({ toastVisible: false })}>
-                            {toastColor === 'success' ? 'Success' : 'Error'}
-                        </ToastHeader>
-                        <ToastBody>{toastMessage}</ToastBody>
-                    </Toast>
-                </div>
             </section >
         );
     }

@@ -1,15 +1,14 @@
 import React, { Component } from 'react';
-import {
-    Button, Form, FormGroup, Label, Input, InputGroup, InputGroupText, Alert
-} from 'reactstrap';
+import { Button, Form, FormGroup, Label, Input, InputGroup, InputGroupText, Alert } from 'reactstrap';
 import { Navigate } from 'react-router-dom';
 import api from '../utils/Api';
 import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 // import { GoogleLogin } from '@react-oauth/google';
 import { connect } from 'react-redux';
 import { loginSuccess } from '../../redux/reducers/authActions';
+import { mergeGuestWishlistToUser } from '../../redux/actions/productActions';
 import { fetchCart } from '../../redux/actions/productActions';
-import { toast } from 'react-toastify';
+import { notifyError } from '../utils/toastUtils';
 
 class Login extends Component {
     constructor(props) {
@@ -33,12 +32,13 @@ class Login extends Component {
         const { email, password } = this.state;
         try {
             const res = await api.post('/login', { email, password });
-            const { token, role, userId } = res.data;
-            this.props.loginSuccess(token, role, userId);
+            const { token, role, userId, name } = res.data;
+            this.props.loginSuccess(token, role, userId, name, email);
+            await this.props.mergeGuestWishlistToUser();
             this.props.fetchCart(userId);
             this.setState({ redirect: true });
         } catch (err) {
-            toast.error('Login failed. Please check your credentials.');
+            notifyError('Login failed. Please check your credentials.');
             this.setState({ error: err.response?.data?.message || 'Login failed' });
         }
     };
@@ -52,7 +52,7 @@ class Login extends Component {
             this.props.loginSuccess(token, role);
             this.setState({ redirect: true });
         } catch (err) {
-            toast.error('Google login failed.');
+            notifyError('Google login failed.');
             console.error(err);
         }
     };
@@ -122,7 +122,8 @@ class Login extends Component {
 
 const mapDispatchToProps = {
     loginSuccess,
-    fetchCart
+    fetchCart,
+    mergeGuestWishlistToUser
 };
 
 export default connect(null, mapDispatchToProps)(Login);

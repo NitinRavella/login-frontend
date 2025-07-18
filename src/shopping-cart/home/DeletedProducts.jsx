@@ -5,6 +5,7 @@ import {
 } from 'reactstrap';
 import { IoMdClose } from 'react-icons/io';
 import api from '../utils/Api';
+import { notifyError, notifySuccess } from '../utils/toastUtils';
 
 class DeletedProducts extends Component {
     state = {
@@ -41,9 +42,10 @@ class DeletedProducts extends Component {
             }), () => {
                 if (this.props.onRefresh) this.props.onRefresh();
             });
-
+            notifySuccess('Product Restore')
         } catch (error) {
             console.error('Failed to restore product:', error);
+            notifyError('Failed to restore product')
         }
     };
 

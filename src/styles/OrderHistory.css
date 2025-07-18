@@ -1,0 +1,140 @@
+/* Summary Section Layout */
+
+/* Tweak for order status badge */
+.order-history-card {
+    width: 100%;
+    overflow: hidden;
+}
+
+.order-history-card .d-flex>.badge {
+    align-self: start;
+    margin-left: auto;
+    margin-top: 4px;
+}
+
+/* Product row spacing */
+.product-row:not(:last-child) {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Address icons */
+.order-address .icon {
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.order-summary-content {
+    gap: 2rem;
+}
+
+.order-address {
+    min-width: 240px;
+}
+
+.order-pricing-box {
+    max-width: 360px;
+    width: 100%;
+}
+
+.order-pricing-box .d-flex {
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.order-pricing-box .border-top {
+    border-color: #ccc !important;
+}
+
+.order-pricing-box strong {
+    font-size: 1rem;
+}
+
+.order-action-buttons button {
+    min-width: 110px;
+}
+
+.order-pricing-box .text-muted small {
+    margin-bottom: 0.25rem;
+}
+
+/* Filter Tabs */
+.filter-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Pagination Styling */
+.pagination-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+}
+
+/* Responsive Layout Fixes */
+@media (max-width: 768px) {
+    .order-summary-content {
+        flex-direction: column;
+    }
+
+    .order-action-buttons {
+        justify-content: flex-start !important;
+    }
+
+    .order-pricing-box {
+        max-width: 100%;
+    }
+
+    .order-address {
+        width: 100%;
+    }
+}
+
+.track-status-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* For iOS smooth scroll */
+    scrollbar-width: thin;
+    scrollbar-color: #aaa transparent;
+}
+
+.track-status-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.track-status-scroll::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.order-action-buttons .btn {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease-in-out;
+}
+
+.order-action-buttons .btn:hover {
+    background-color: rgba(25, 118, 210, 0.08);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.pagination .page-link {
+    border-radius: 6px;
+    color: #1976d2;
+    font-weight: 500;
+    margin: 0 2px;
+    transition: background-color 0.2s ease;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #1976d2;
+    border-color: #1976d2;
+    color: #fff;
+}
