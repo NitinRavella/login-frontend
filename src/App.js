@@ -15,10 +15,10 @@ import LikedProducts from './shopping-cart/home/LikedProducts';
 import AddToCart from './shopping-cart/cart/AddToCart';
 import Checkout from './shopping-cart/cart/Checkout';
 import OrderConfirmation from './shopping-cart/cart/OrderConfirmation';
-import AllOrdersTable from './shopping-cart/cart/AllOrdersTable';
 import OrderHistory from './shopping-cart/cart/OrderHistory';
 import OrderDetailsPage from './shopping-cart/cart/OrderDetailsPage';
 import PublicRoute from './shopping-cart/components/PublicRoute';
+import AdminOrderCards from './shopping-cart/cart/AdminOrderCards';
 
 
 class App extends Component {
@@ -37,14 +37,14 @@ class App extends Component {
                         <Route path="/home" element={<Home />} />
                         <Route path="/product/:id" element={<ProductDetails />} />
                         <Route path="/order/:orderId" element={<OrderDetailsPage />} />
+                        <Route path="/liked-products" element={<LikedProducts />} />
 
                         {/* Protected Routes (only after login) */}
                         <Route element={<PrivateRoute><ProtectedLayout /></PrivateRoute>}>
-                            <Route path="/liked-products" element={<LikedProducts />} />
                             <Route path='/cart' element={<AddToCart />} />
                             <Route path='checkout' element={<Checkout />} />
                             <Route path='/order-confirmation' element={<OrderConfirmation />} />
-                            <Route path="/admin/orders" element={<AllOrdersTable />} />
+                            <Route path="/admin/orders" element={<AdminOrderCards />} />
                             <Route path='/order-history' element={<OrderHistory />} />
                             <Route path="/admin/users" element={<AdminUsersList />} />
                             <Route path="/profile" element={<Profile />} />

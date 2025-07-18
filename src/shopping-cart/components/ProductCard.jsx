@@ -2,11 +2,10 @@ import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { Spinner } from 'reactstrap';
 import { FaShoppingCart, FaPlus, FaMinus } from 'react-icons/fa';
-import { toast } from 'react-toastify';
 import { addToCart, updateCartQuantity, fetchCart } from '../../redux/actions/productActions';
 import api from '../utils/Api';
 import '../../styles/ProductCard.css';
-import { error, success, warning, info } from '../utils/toastUtils';
+import { notifyError, notifySuccess, notifyWarning, notifyInfo } from '../utils/toastUtils';
 
 class ProductCard extends Component {
     state = {
@@ -19,7 +18,7 @@ class ProductCard extends Component {
 
         const userID = sessionStorage.getItem('userId');
         if (!userID) {
-            error('Please login to add to cart');
+            notifyError('Please login to add to cart');
             return;
         }
 
@@ -28,23 +27,23 @@ class ProductCard extends Component {
         // Validation: Ensure selections and stock
         if (isFashion) {
             if (!selectedSize) {
-                warning('Please select a size');
+                notifyWarning('Please select a size');
                 return;
             }
 
             const sizeObj = variant?.sizeStock?.find(s => s.size === selectedSize);
             if (!sizeObj || sizeObj.stock < 1) {
-                info('Selected size is out of stock');
+                notifyInfo('Selected size is out of stock');
                 return;
             }
         } else {
             if (!selectedRam || !selectedRom) {
-                warning('Please select RAM and ROM');
+                notifyWarning('Please select RAM and ROM');
                 return;
             }
 
             if (!stock || stock < 1) {
-                info('Selected variant is out of stock');
+                notifyInfo('Selected variant is out of stock');
                 return;
             }
         }
@@ -63,8 +62,8 @@ class ProductCard extends Component {
             selectedRom: isFashion ? null : selectedRom,
             quantity: 1
         })
-            .then(() => success('Added to cart!'))
-            .catch(err => error(err?.response?.data?.message || 'Failed to add to cart'))
+            .then(() => notifySuccess('Added to cart!'))
+            .catch(err => notifyError(err?.response?.data?.message || 'Failed to add to cart'))
             .finally(() => {
                 setTimeout(() => {
                     this.setState(prev => ({
@@ -78,7 +77,7 @@ class ProductCard extends Component {
         const userId = sessionStorage.getItem('userId');
 
         if (!userId) {
-            error('You must be logged in');
+            notifyError('You must be logged in');
             return;
         }
         if (newQty < 1) {
@@ -86,10 +85,10 @@ class ProductCard extends Component {
                 await api.delete(`/${userId}/cart/${productId}`, {
                     data: { variantId, selectedSize, selectedColor, selectedRam, selectedRom }
                 });
-                info('Product removed from cart');
+                notifyInfo('Product removed from cart');
                 this.props.fetchCart(userId);
             } catch (err) {
-                error(err?.response?.data?.message);
+                notifyError(err?.response?.data?.message);
             }
             return;
         }
@@ -103,23 +102,14 @@ class ProductCard extends Component {
                 selectedRam,
                 selectedRom
             );
-            success('Quantity updated');
+            notifySuccess('Quantity updated');
         } catch (err) {
-            error(err?.response?.data?.message);
+            notifyError(err?.response?.data?.message);
         }
     };
 
     render() {
-        const {
-            product,
-            variant,
-            selectedSize,
-            selectedRam,
-            selectedRom,
-            selectedColor,
-            stock,
-            cartProducts
-        } = this.props;
+        const { product, variant, selectedSize, selectedRam, selectedRom, selectedColor, stock, cartProducts } = this.props;
 
         const { cartAnimatingIds } = this.state;
 
@@ -129,7 +119,7 @@ class ProductCard extends Component {
         const maxQty = Math.min(currentStock, 10);
         const inStock = currentStock > 0;
 
-        const cartItem = cartProducts.find(item =>
+        const cartItem = cartProducts?.find(item =>
             item.product &&
             item.product._id === product._id &&
             item.variantId === variant?.variantId &&
@@ -138,7 +128,6 @@ class ProductCard extends Component {
                 ? item.selectedSize === selectedSize
                 : item.selectedRam === selectedRam && item.selectedRom === selectedRom)
         );
-        console.log('cartProducts', cartProducts)
 
         const hasSelectedRequiredOptions = isFashion
             ? selectedSize
@@ -181,7 +170,7 @@ class ProductCard extends Component {
                                         selectedRom,
                                     );
                                 } else {
-                                    info(`Only ${currentStock} in stock`);
+                                    notifyInfo(`Only ${currentStock} in stock`);
                                 }
                             }}
                         >

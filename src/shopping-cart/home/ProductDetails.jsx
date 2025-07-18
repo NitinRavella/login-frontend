@@ -1,17 +1,15 @@
 import React from 'react';
-import {
-    Container, Row, Col, Button, Toast, ToastBody, ToastHeader, Modal, ModalBody
-} from 'reactstrap';
+import { Container, Row, Col, Button, Modal, ModalBody } from 'reactstrap';
 import { FaRegHeart, FaHeart } from 'react-icons/fa';
 import api from '../utils/Api';
 import { RiFullscreenFill } from "react-icons/ri";
 import withRouter from '../components/WithRoute';
 import { addToCart, toggleLike, fetchLikedProducts } from '../../redux/actions/productActions';
 import { connect } from 'react-redux';
-import '../../styles/ProductDetails.css';
 import ReviewForm from '../components/RatingComponent';
 import ProductCard from '../components/ProductCard';
-import { error, success } from '../utils/toastUtils';
+import { notifyError, notifySuccess, notifyInfo } from '../utils/toastUtils';
+import '../../styles/ProductDetails.css';
 
 class ProductDetailsComponent extends React.Component {
     constructor(props) {
@@ -21,9 +19,6 @@ class ProductDetailsComponent extends React.Component {
             selectedImage: '',
             selectedRam: '',
             selectedRom: '',
-            toastVisible: false,
-            toastMessage: '',
-            toastColor: 'success',
             addedToCart: false,
             cartAnimating: false,
             liking: false,
@@ -55,6 +50,7 @@ class ProductDetailsComponent extends React.Component {
         // Delay setting selected variant until after product is fetched
         this.setState({ routeSelection: { selectedColor, selectedSize, selectedRam, selectedRom } });
     }
+
     componentDidUpdate(prevProps) {
         if (prevProps.params.id !== this.props.params.id) {
             const { state } = this.props.location || {};
@@ -157,7 +153,7 @@ class ProductDetailsComponent extends React.Component {
             });
         } catch (error) {
             console.error("Failed to fetch product:", error);
-            error('Failed to fetch product')
+            notifyError('Failed to fetch product')
         }
     };
 
@@ -168,8 +164,11 @@ class ProductDetailsComponent extends React.Component {
 
     handleLikeToggle = () => {
         const { product, selectedColor, selectedRam, selectedRom, selectedSize } = this.state;
+        const { likedProducts, toggleLike, fetchLikedProducts } = this.props;
+
         const isElectronics = ['phone', 'laptop', 'tablet'].includes(product.category);
 
+        // Find the selected variant based on category
         const selectedVariant = product.variants.find((v) => {
             if (isElectronics) {
                 return v.color === selectedColor && v.ram === selectedRam && v.rom === selectedRom;
@@ -179,30 +178,34 @@ class ProductDetailsComponent extends React.Component {
         });
 
         if (!selectedVariant) {
-            error('Please select the variant ')
+            notifyError('Please select the variant before liking.');
             return;
         }
 
-        const isCurrentlyLiked = this.props.likedProducts.some(
-            item => item.productId === product._id && item.variantId === selectedVariant.variantId
+        const variantId = selectedVariant.variantId;
+        const isCurrentlyLiked = likedProducts.some(
+            item => item.productId === product._id && item.variantId === variantId
         );
 
         this.setState({ liking: true });
 
-        this.props.toggleLike(product._id, selectedVariant.variantId, isCurrentlyLiked)
+        toggleLike(product._id, variantId, isCurrentlyLiked)
             .then((newLikedStatus) => {
-                this.props.fetchLikedProducts();
-                success(newLikedStatus ? "Product liked" : "Product unliked");
+                fetchLikedProducts();
+
+                if (newLikedStatus) {
+                    notifySuccess("Product added to wishlist");
+                } else {
+                    notifyInfo("Product removed from wishlist");
+                }
             })
             .catch((err) => {
-                error(err.message || "Something went wrong");
+                notifyError(err.message || "Something went wrong while updating wishlist");
             })
             .finally(() => {
                 this.setState({ liking: false });
             });
     };
-
-
 
     getSelectedSizeStock = () => {
         const { selectedSize, product, selectedVariantIndex } = this.state;
@@ -236,10 +239,7 @@ class ProductDetailsComponent extends React.Component {
             </Container>
         );
 
-        const {
-            toastVisible, toastMessage, toastColor, selectedImage,
-            selectedSize, selectedVariantIndex, liking, selectedRam, selectedRom
-        } = this.state;
+        const { selectedImage, selectedSize, selectedVariantIndex, liking, selectedRam, selectedRom } = this.state;
 
         const { likedProducts } = this.props;
 
@@ -542,14 +542,6 @@ class ProductDetailsComponent extends React.Component {
                         </ModalBody>
                     </Modal>
                 </Row>
-                <div className="custom-toast">
-                    <Toast isOpen={toastVisible} className={`bg-${toastColor} text-white`} fade={false}>
-                        <ToastHeader toggle={() => this.setState({ toastVisible: false })}>
-                            {toastColor === 'success' ? 'Success' : 'Error'}
-                        </ToastHeader>
-                        <ToastBody>{toastMessage}</ToastBody>
-                    </Toast>
-                </div>
             </Container>
         );
     }

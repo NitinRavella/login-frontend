@@ -1,0 +1,89 @@
+.admin-order-container {
+    padding: 1rem;
+}
+
+.order-card {
+    border-radius: 10px;
+    background-color: #fff;
+}
+
+.product-thumb {
+    max-height: 80px;
+    object-fit: contain;
+}
+
+.order-status-badge {
+    margin-top: 5px;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    min-width: 90px;
+    text-align: center;
+}
+
+.view-toggle button {
+    background-color: transparent;
+    color: black;
+    width: 40px;
+    height: 40px;
+}
+
+/* Color-coded status badges */
+.badge.bg-secondary {
+    background-color: none !important;
+}
+
+.order-status-badge {
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+/* Status-specific colors */
+.status-Placed {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.status-Confirmed {
+    background-color: #17a2b8;
+    color: #fff;
+}
+
+.status-Shipped {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.status-OutforDelivery {
+    background-color: #fd7e14;
+    color: #fff;
+}
+
+.status-Delivered {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.status-Cancelled {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+@media (max-width: 576px) {
+    .product-thumb {
+        max-height: 60px;
+    }
+
+    .order-card {
+        padding: 1rem;
+    }
+}

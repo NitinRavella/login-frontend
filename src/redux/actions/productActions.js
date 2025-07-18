@@ -1,7 +1,7 @@
 import api from '../../shopping-cart/utils/Api';
 import {
     ADD_TO_CART_REQUEST,
-    ADD_TO_CART_SUCCESS,
+    // ADD_TO_CART_SUCCESS,
     ADD_TO_CART_FAILURE,
     TOGGLE_LIKE_REQUEST,
     TOGGLE_LIKE_SUCCESS,
@@ -16,118 +16,136 @@ import {
     UPDATE_CART_SUCCESS,
     UPDATE_CART_REQUEST,
     CLEAR_LIKED_PRODUCTS,
-    CLEAR_CART
+    CLEAR_CART,
+    MERGE_WISHLIST_REQUEST,
+    MERGE_WISHLIST_SUCCESS,
+    MERGE_WISHLIST_FAILURE
 } from './actionTypes';
 
-export const fetchCart = () => {
-    return async (dispatch) => {
-        const userId = sessionStorage.getItem('userId');
-        if (!userId) return;
+const getGuestWishlist = () => JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+// const saveGuestWishlist = (list) => localStorage.setItem('guestWishlist', JSON.stringify(list));
 
-        dispatch({ type: FETCH_CART_REQUEST });
+// ---------------- CART ACTIONS ---------------- //
 
-        try {
-            const response = await api.get(`/${userId}/cart`);
-            dispatch({
-                type: FETCH_CART_SUCCESS,
-                payload: response.data || [],
-            });
-        } catch (error) {
-            dispatch({
-                type: FETCH_CART_FAILURE,
-                payload: error.message || 'Failed to fetch cart',
-            });
-        }
-    };
+export const fetchCart = () => async (dispatch) => {
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) return;
+
+    dispatch({ type: FETCH_CART_REQUEST });
+
+    try {
+        const response = await api.get(`/${userId}/cart`);
+        dispatch({ type: FETCH_CART_SUCCESS, payload: response.data || [] });
+    } catch (error) {
+        dispatch({
+            type: FETCH_CART_FAILURE,
+            payload: error.message || 'Failed to fetch cart',
+        });
+    }
 };
 
-export const addToCart = (product) => {
-    return async (dispatch) => {
-        const userId = sessionStorage.getItem('userId');
-        if (!userId) {
-            return Promise.reject(new Error("You must be logged in to add products to cart."));
-        }
+export const addToCart = (product) => async (dispatch) => {
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) {
+        return Promise.reject(new Error("You must be logged in to add products to cart."));
+    }
 
-        dispatch({ type: ADD_TO_CART_REQUEST });
+    dispatch({ type: ADD_TO_CART_REQUEST });
 
-        try {
-            await api.post(`/${userId}/cart`, {
-                productID: product.productID,
-                quantity: 1,
-                selectedSize: product.selectedSize || null,
-                selectedColor: product.selectedColor || null,
-                selectedRam: product.selectedRam || null,
-                selectedRom: product.selectedRom || null
-            });
+    try {
+        await api.post(`/${userId}/cart`, {
+            productID: product.productID,
+            quantity: 1,
+            selectedSize: product.selectedSize || null,
+            selectedColor: product.selectedColor || null,
+            selectedRam: product.selectedRam || null,
+            selectedRom: product.selectedRom || null
+        })
 
-            await dispatch(fetchCart());
-            dispatch({ type: ADD_TO_CART_SUCCESS });
-
-            return Promise.resolve();
-        } catch (error) {
-            dispatch({
-                type: ADD_TO_CART_FAILURE,
-                payload: error.message || 'Failed to add to cart'
-            });
-            return Promise.reject(error);
-        }
-    };
+        await dispatch(fetchCart());
+        return Promise.resolve();
+    } catch (error) {
+        dispatch({
+            type: ADD_TO_CART_FAILURE,
+            payload: error.message || 'Failed to add to cart'
+        });
+        return Promise.reject(error);
+    }
 };
 
-export const updateCartQuantity = (productId, quantity, selectedSize, selectedColor, selectedRam, selectedRom) => {
-    return async (dispatch) => {
-        const userId = sessionStorage.getItem('userId');
-        if (!userId) {
-            return Promise.reject(new Error("You must be logged in to update the cart."));
-        }
+export const updateCartQuantity = (productId, quantity, selectedSize, selectedColor, selectedRam, selectedRom) => async (dispatch) => {
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) {
+        return Promise.reject(new Error("You must be logged in to update the cart."));
+    }
 
-        dispatch({ type: UPDATE_CART_REQUEST });
+    dispatch({ type: UPDATE_CART_REQUEST });
 
-        try {
-            const res = await api.put(`/${userId}/cart/update`, {
-                productId,
-                quantity,
-                selectedSize: selectedSize || null,
-                selectedColor: selectedColor || null,
-                selectedRam: selectedRam || null,
-                selectedRom: selectedRom || null
-            });
+    try {
+        const res = await api.put(`/${userId}/cart/update`, {
+            productId,
+            quantity,
+            selectedSize: selectedSize || null,
+            selectedColor: selectedColor || null,
+            selectedRam: selectedRam || null,
+            selectedRom: selectedRom || null
+        });
 
-            dispatch({
-                type: UPDATE_CART_SUCCESS,
-                payload: res.data
-            });
-
-            return Promise.resolve();
-        } catch (error) {
-            dispatch({
-                type: UPDATE_CART_FAILURE,
-                payload: error.message || 'Failed to update cart quantity'
-            });
-
-            return Promise.reject(error);
-        }
-    };
+        dispatch({ type: UPDATE_CART_SUCCESS, payload: res.data });
+        return Promise.resolve();
+    } catch (error) {
+        dispatch({
+            type: UPDATE_CART_FAILURE,
+            payload: error.message || 'Failed to update cart quantity'
+        });
+        return Promise.reject(error);
+    }
 };
 
+// ---------------- WISHLIST (LIKE) ACTIONS ---------------- //
 
 export const toggleLike = (productId, variantId, currentlyLiked) => {
     return async (dispatch) => {
         const userId = sessionStorage.getItem('userId');
-        if (!userId) {
-            return Promise.reject(new Error("You must be logged in to like products."));
-        }
+        const userToken = sessionStorage.getItem('token');
 
         dispatch({ type: TOGGLE_LIKE_REQUEST });
 
+        // 💡 Guest user: store in localStorage
+        if (!userToken) {
+            const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+
+            const alreadyLiked = guestWishlist.some(
+                item => item.productId === productId && item.variantId === variantId
+            );
+
+            let updatedWishlist;
+
+            if (alreadyLiked) {
+                updatedWishlist = guestWishlist.filter(
+                    item => !(item.productId === productId && item.variantId === variantId)
+                );
+            } else {
+                updatedWishlist = [...guestWishlist, { productId, variantId }];
+            }
+
+            localStorage.setItem('guestWishlist', JSON.stringify(updatedWishlist));
+
+            dispatch({
+                type: TOGGLE_LIKE_SUCCESS,
+                payload: { productId, variantId, liked: !alreadyLiked },
+            });
+
+            return Promise.resolve(!alreadyLiked);
+        }
+
+        // ✅ Logged-in user: call backend
         try {
             if (!currentlyLiked) {
-                // Like (add to wishlist)
                 await api.post(`/wishlist/toggle/${userId}/${productId}`, { variantId });
             } else {
-                // Unlike (remove from wishlist)
                 await api.delete(`/wishlist/remove/${userId}/${productId}`, {
-                    data: { variantId }  // DELETE requests need data like this
+                    data: { variantId }
                 });
             }
 
@@ -147,47 +165,79 @@ export const toggleLike = (productId, variantId, currentlyLiked) => {
     };
 };
 
-// In your productActions.js
-export const fetchLikedProducts = () => {
-    return async (dispatch) => {
-        const userId = sessionStorage.getItem('userId');
 
-        if (!userId) {
-            dispatch({
-                type: FETCH_LIKED_PRODUCTS_FAILURE,
-                payload: 'User not logged in',
-            });
-            return Promise.reject(new Error('User not logged in'));
-        }
+export const fetchLikedProducts = () => async (dispatch) => {
+    const userId = sessionStorage.getItem('userId');
 
-        dispatch({ type: FETCH_LIKED_PRODUCTS_REQUEST });
+    dispatch({ type: FETCH_LIKED_PRODUCTS_REQUEST });
 
-        try {
+    try {
+        if (userId) {
             const response = await api.get(`/wishlist/${userId}`);
             dispatch({
                 type: FETCH_LIKED_PRODUCTS_SUCCESS,
-                payload: response.data.wishlist || [],  // Must be [{ productId, variantId }]
+                payload: response.data.wishlist || [],
             });
-            return Promise.resolve();
-        } catch (error) {
+        } else {
+            const guestItems = getGuestWishlist();
             dispatch({
-                type: FETCH_LIKED_PRODUCTS_FAILURE,
-                payload: error.message || 'Failed to fetch wishlist',
+                type: FETCH_LIKED_PRODUCTS_SUCCESS,
+                payload: guestItems,
             });
-            return Promise.reject(error);
         }
-    };
+
+        return Promise.resolve();
+    } catch (error) {
+        dispatch({
+            type: FETCH_LIKED_PRODUCTS_FAILURE,
+            payload: error.message || 'Failed to fetch wishlist',
+        });
+        return Promise.reject(error);
+    }
 };
 
+// ---------------- GUEST WISHLIST MERGE AFTER LOGIN ---------------- //
+export const mergeGuestWishlistToUser = () => async (dispatch) => {
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) return;
 
-export const clearLikedProducts = () => {
-    return {
-        type: CLEAR_LIKED_PRODUCTS,
-    };
+    const guestWishlist = getGuestWishlist();
+    if (!guestWishlist.length) return;
+
+    dispatch({ type: MERGE_WISHLIST_REQUEST });
+
+    try {
+        // 1. Fetch current user wishlist to prevent duplicates
+        const response = await api.get(`/wishlist/${userId}`);
+        const userWishlist = response.data.wishlist || [];
+
+        const existingSet = new Set(
+            userWishlist.map(item => `${item.productId}-${item.variantId}`)
+        );
+
+        const newItems = guestWishlist.filter(
+            item => !existingSet.has(`${item.productId}-${item.variantId}`)
+        );
+
+        for (const item of newItems) {
+            await api.post(`/wishlist/toggle/${userId}/${item.productId}`, {
+                variantId: item.variantId
+            });
+        }
+
+        localStorage.removeItem('guestWishlist');
+        dispatch({ type: MERGE_WISHLIST_SUCCESS });
+
+        dispatch(fetchLikedProducts());
+    } catch (error) {
+        dispatch({
+            type: MERGE_WISHLIST_FAILURE,
+            payload: error.message || 'Failed to merge wishlist',
+        });
+    }
 };
 
-export const clearCart = () => {
-    return {
-        type: CLEAR_CART,
-    };
-};
+// ---------------- CLEAR ACTIONS ---------------- //
+
+export const clearLikedProducts = () => ({ type: CLEAR_LIKED_PRODUCTS });
+export const clearCart = () => ({ type: CLEAR_CART });

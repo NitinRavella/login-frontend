@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import api from '../utils/Api';
+import { notifyError } from '../utils/toastUtils';
 
 class OrderStatusChart extends Component {
     constructor(props) {
@@ -29,6 +30,7 @@ class OrderStatusChart extends Component {
             );
         } catch (error) {
             console.error('Error fetching data:', error);
+            notifyError('Error fetching data')
             this.setState({ loading: false });
         }
     };

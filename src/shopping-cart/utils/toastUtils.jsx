@@ -13,7 +13,7 @@ const commonOptions = {
 };
 
 // ✅ Success toast
-export const success = (message, duration = 2000) => {
+export const notifySuccess = (message, duration = 2000) => {
     toast.success(message, {
         ...commonOptions,
         autoClose: duration,
@@ -22,7 +22,7 @@ export const success = (message, duration = 2000) => {
 };
 
 // ✅ Error toast
-export const error = (message, duration = 2000) => {
+export const notifyError = (message, duration = 2000) => {
     toast.error(message, {
         ...commonOptions,
         autoClose: duration,
@@ -31,7 +31,7 @@ export const error = (message, duration = 2000) => {
 };
 
 // ✅ Info toast
-export const info = (message, duration = 2000) => {
+export const notifyInfo = (message, duration = 2000) => {
     toast.info(message, {
         ...commonOptions,
         autoClose: duration,
@@ -40,7 +40,7 @@ export const info = (message, duration = 2000) => {
 };
 
 // ⚠️ Warning (your missing piece)
-export const warning = (message, duration = 2000) => {
+export const notifyWarning = (message, duration = 2000) => {
     toast.warning(message, {
         ...commonOptions,
         autoClose: duration,
@@ -49,7 +49,7 @@ export const warning = (message, duration = 2000) => {
 };
 
 // ✅ Waiting toast (warning style)
-export const waiting = (message, duration = 2000) => {
+export const notifyWaiting = (message, duration = 2000) => {
     toast.warning(message, {
         ...commonOptions,
         autoClose: duration,
@@ -59,7 +59,7 @@ export const waiting = (message, duration = 2000) => {
 
 // ✅ Loading toast (non-auto close)
 // Returns toastId so you can update or dismiss it later
-export const loading = (message = "Loading...") => {
+export const notifyLoading = (message = "Loading...") => {
     return toast.loading(message, {
         ...commonOptions,
         autoClose: false,
@@ -68,7 +68,7 @@ export const loading = (message = "Loading...") => {
 };
 
 // ✅ Update toast (used for loading to success/error/etc.)
-export const updateToast = (toastId, type = "success", message = "", duration = 2000) => {
+export const notifyUpdateToast = (toastId, type = "success", message = "", duration = 2000) => {
     toast.update(toastId, {
         render: message,
         type,

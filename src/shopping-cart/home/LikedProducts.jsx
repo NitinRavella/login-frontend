@@ -1,12 +1,11 @@
 import React, { Component } from 'react';
-import {
-    Row, Col, Spinner, Container, Modal, ModalHeader, ModalBody, ModalFooter, Button, FormGroup, Label, Input
-} from 'reactstrap';
+import { Row, Col, Spinner, Container, Modal, ModalHeader, ModalBody, ModalFooter, Button, FormGroup, Label, Input } from 'reactstrap';
 import api from '../utils/Api';
 import { connect } from 'react-redux';
 import { addToCart, fetchCart } from '../../redux/actions/productActions';
 import withRouter from '../components/WithRoute';
 import WishlistProductCard from './WishlistCard';
+import { notifyError } from '../utils/toastUtils';
 import '../../styles/Wishlist.css';
 
 
@@ -33,7 +32,32 @@ class LikedProducts extends Component {
     fetchLikedProducts = async () => {
         const userId = sessionStorage.getItem('userId');
         if (!userId) {
-            this.setState({ loading: false });
+            const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+            try {
+                const results = await Promise.all(
+                    guestWishlist.map(async (item) => {
+                        const res = await api.get(`/products/${item.productId}`);
+                        const product = res.data;
+                        const matchedVariant = product.variants?.find(v => v.variantId === item.variantId);
+
+                        return {
+                            productId: product._id,
+                            name: product.name,
+                            category: product.category,
+                            brand: product.brand,
+                            mainImages: product.mainImages,
+                            variantId: item.variantId,
+                            variant: matchedVariant
+                        };
+                    })
+                );
+
+                this.setState({ likedProducts: results, loading: false });
+            } catch (err) {
+                console.error('Failed to fetch guest wishlist products:', err);
+                this.setState({ loading: false });
+            }
+
             return;
         }
         try {
@@ -47,23 +71,54 @@ class LikedProducts extends Component {
 
     handleRemoveFromWishlist = async (productId, variantId) => {
         const userId = sessionStorage.getItem('userId');
+
+        if (!userId) {
+            const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+
+            const updatedIds = guestWishlist.filter(
+                item => `${item.productId}` !== `${productId}` || `${item.variantId}` !== `${variantId}`
+            );
+
+            localStorage.setItem('guestWishlist', JSON.stringify(updatedIds));
+
+            try {
+                const enriched = await Promise.all(
+                    updatedIds.map(async (item) => {
+                        const res = await api.get(`/products/${item.productId}`);
+                        const product = res.data;
+                        const matchedVariant = product.variants?.find(v => v.variantId === item.variantId);
+
+                        return {
+                            productId: product._id,
+                            name: product.name,
+                            category: product.category,
+                            brand: product.brand,
+                            mainImages: product.mainImages,
+                            variantId: item.variantId,
+                            variant: matchedVariant
+                        };
+                    })
+                );
+
+                this.setState({ likedProducts: enriched });
+            } catch (err) {
+                console.error('Error updating guest wishlist display:', err);
+            }
+            return;
+        }
         try {
             await api.delete(`/wishlist/remove/${userId}/${productId}`, {
                 data: { variantId }
             });
-            this.fetchLikedProducts()
-            this.setState(prevState => ({
-                likedProducts: prevState.likedProducts.filter(
-                    item => !(item.productId._id === productId && item.variantId === variantId)
-                )
-            }));
+            this.fetchLikedProducts();
         } catch (err) {
             console.error('Failed to remove liked product:', err);
         }
     };
 
+
     handleNavigateToProduct = (product, variant) => {
-        const { variantId, color, ram, rom, sizeStock } = variant;
+        const { color, ram, rom, sizeStock } = variant;
 
         const routeState = {
             selectedColor: color || '',
@@ -96,23 +151,23 @@ class LikedProducts extends Component {
         // Basic validation
         if (isFashion) {
             if (!selectedSize) {
-                alert('Please select a size');
+                notifyError('Please select a size');
                 return;
             }
 
             const sizeObj = selectedVariant.sizeStock?.find(s => s.size === selectedSize);
             if (!sizeObj || sizeObj.stock < 1) {
-                alert('Selected size is out of stock');
+                notifyError('Selected size is out of stock');
                 return;
             }
         } else {
             if (!selectedRam || !selectedRom) {
-                alert('Please select RAM and ROM');
+                notifyError('Please select RAM and ROM');
                 return;
             }
 
             if (!selectedVariant.stock || selectedVariant.stock < 1) {
-                alert('Selected variant is out of stock');
+                notifyError('Selected variant is out of stock');
                 return;
             }
         }
@@ -137,7 +192,7 @@ class LikedProducts extends Component {
             this.setState({ modalOpen: false });
         } catch (err) {
             console.error('Failed to add to cart:', err);
-            alert(err?.response?.data?.message || 'Failed to add to cart');
+            notifyError(err?.response?.data?.message || 'Failed to add to cart');
         }
     };
 
@@ -160,7 +215,7 @@ class LikedProducts extends Component {
                 </ModalHeader>
                 <ModalBody className="move-to-bag-modal">
                     <div className="modal-product">
-                        <img src={selectedVariant?.images?.[0]} alt="" className="modal-image" />
+                        <img src={selectedVariant?.images?.[0] || selectedVariant?.thumbnails?.[0]} alt="" className="modal-image" />
                         <div>
                             <h6>{selectedProduct?.name}</h6>
                             <p className="text-muted m-0">{selectedVariant?.color}</p>
@@ -248,7 +303,6 @@ class LikedProducts extends Component {
 
     render() {
         const { likedProducts, loading } = this.state;
-
         return (
             <Container className="my-5">
                 <div className="text-center mb-5">
@@ -277,7 +331,7 @@ class LikedProducts extends Component {
                                         variant={variant}
                                         variantId={variantId}
                                         onClick={() => this.handleNavigateToProduct(product, variant)}
-                                        onRemove={() => this.handleRemoveFromWishlist(product._id, variantId)}
+                                        onRemove={() => this.handleRemoveFromWishlist(product, variantId)}
                                         onMoveToBag={() => this.handleMoveToBag(item, variant)}
                                     />
                                 </Col>

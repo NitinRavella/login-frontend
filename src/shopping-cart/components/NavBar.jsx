@@ -8,9 +8,9 @@ import { logoutUser } from "../../redux/reducers/authActions";
 import { clearLikedProducts, clearCart } from "../../redux/actions/productActions";
 import { connect } from "react-redux";
 import api from "../utils/Api";
-import { toast } from "react-toastify";
 import withRouter from "./WithRoute";
 import { fetchCart } from "../../redux/actions/productActions";
+import { notifySuccess } from "../utils/toastUtils";
 
 class NavBar extends React.Component {
 
@@ -29,7 +29,7 @@ class NavBar extends React.Component {
             this.props.dispatch(clearLikedProducts())
             this.props.dispatch(clearCart())
             this.props.navigate('/home');
-            toast.success("Logged out successfully!");
+            notifySuccess("Logged out successfully!");
         } catch (error) {
             console.error("Logout failed:", error);
         }
@@ -42,13 +42,13 @@ class NavBar extends React.Component {
                 <Navbar color="light" light expand="md">
                     <Link to="/home" className="navbar-brand">N Shop</Link>
                     <Nav className="ms-auto" navbar>
+                        <NavItem>
+                            <NavLink tag={Link} to='/liked-products'>
+                                <FaRegHeart size={23} />
+                            </NavLink>
+                        </NavItem>
                         {isAuthenticated ? (
                             <>
-                                <NavItem>
-                                    <NavLink tag={Link} to='/liked-products'>
-                                        <FaRegHeart size={23} />
-                                    </NavLink>
-                                </NavItem>
                                 <NavItem>
                                     <NavLink tag={Link} to="/profile">
                                         <FaRegUser size={20} />
@@ -81,10 +81,11 @@ class NavBar extends React.Component {
                                     </Button>
                                 </NavItem>
                             </>
-                        ) :
+                        ) : <>
                             <NavItem>
                                 <NavLink tag={Link} to="/login">Login</NavLink>
                             </NavItem>
+                        </>
                         }
                     </Nav>
                 </Navbar>

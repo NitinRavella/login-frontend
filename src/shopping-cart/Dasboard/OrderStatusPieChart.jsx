@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import api from '../utils/Api';
+import { notifyError } from '../utils/toastUtils';
 
 class OrderStatusPieChart extends Component {
     constructor(props) {
@@ -32,6 +33,7 @@ class OrderStatusPieChart extends Component {
             });
         } catch (error) {
             console.error('Error fetching order status stats:', error);
+            notifyError('Error fetching order status stats')
             this.setState({ loading: false });
         }
     };

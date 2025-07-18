@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import api from '../utils/Api';
+import { notifyError } from '../utils/toastUtils';
 
 const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -115,6 +116,7 @@ class MonthlyOrdersBarChart extends Component {
             }));
         } catch (error) {
             console.error('Error fetching monthly order stats:', error);
+            notifyError('Error fetching monthly order stats')
             this.setState({ loading: false });
         }
     };

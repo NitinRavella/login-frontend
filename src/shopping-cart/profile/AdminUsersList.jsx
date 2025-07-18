@@ -7,7 +7,6 @@ import {
     DropdownToggle,
     DropdownMenu,
     DropdownItem,
-    UncontrolledTooltip
 } from 'reactstrap';
 import { RiAdminFill, RiUserSettingsLine } from "react-icons/ri";
 import { BiSolidUser } from "react-icons/bi";
@@ -16,6 +15,7 @@ import api from '../utils/Api';
 import withRouter from '../components/WithRoute';
 import { toast } from 'react-toastify';
 import '../../styles/AdminUsersList.css'
+import Tooltip from '../utils/Tooltip';
 
 class AdminUsersList extends Component {
     state = {
@@ -126,35 +126,32 @@ class AdminUsersList extends Component {
                                     <td>
                                         {user.role !== 'superadmin' && (
                                             <div>
-                                                <Dropdown
-                                                    isOpen={dropdownOpenId === user._id}
-                                                    toggle={() => this.toggleDropdown(user._id)}
-                                                >
-                                                    <DropdownToggle
-                                                        color="link"
-                                                        id={`toggle-${user._id}`}
-                                                        className="p-0"
-                                                        style={{ border: 'none', cursor: 'pointer' }}
+                                                <Tooltip content="Change Role">
+                                                    <Dropdown
+                                                        isOpen={dropdownOpenId === user._id}
+                                                        toggle={() => this.toggleDropdown(user._id)}
                                                     >
-                                                        <RiUserSettingsLine size={32} />
-                                                    </DropdownToggle>
-                                                    <DropdownMenu>
-                                                        <DropdownItem onClick={() => this.handleRoleChange(user._id, 'user')}>
-                                                            Set as User
-                                                        </DropdownItem>
-                                                        <DropdownItem onClick={() => this.handleRoleChange(user._id, 'admin')}>
-                                                            Set as Admin
-                                                        </DropdownItem>
-                                                    </DropdownMenu>
-                                                </Dropdown>
-                                                <UncontrolledTooltip
-                                                    placement="top"
-                                                    target={`toggle-${user._id}`}
-                                                >
-                                                    Change Role
-                                                </UncontrolledTooltip>
+                                                        <DropdownToggle
+                                                            color="link"
+                                                            id={`toggle-${user._id}`}
+                                                            className="p-0"
+                                                            style={{ border: 'none', cursor: 'pointer' }}
+                                                        >
+                                                            <RiUserSettingsLine size={32} />
+                                                        </DropdownToggle>
+                                                        <DropdownMenu>
+                                                            <DropdownItem onClick={() => this.handleRoleChange(user._id, 'user')}>
+                                                                Set as User
+                                                            </DropdownItem>
+                                                            <DropdownItem onClick={() => this.handleRoleChange(user._id, 'admin')}>
+                                                                Set as Admin
+                                                            </DropdownItem>
+                                                        </DropdownMenu>
+                                                    </Dropdown>
+                                                </Tooltip>
                                             </div>
                                         )}
+
                                     </td>
                                 </tr>
                             ))}
